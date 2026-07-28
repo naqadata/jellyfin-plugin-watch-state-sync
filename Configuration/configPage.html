@@ -32,6 +32,9 @@
         .watchSyncTable { width: 100%; border-collapse: collapse; font-size: .9em; }
         .watchSyncTable th, .watchSyncTable td { padding: .55em; border-bottom: 1px solid rgba(128, 128, 128, .25); text-align: left; vertical-align: top; }
         .watchSyncPath { max-width: 30em; overflow-wrap: anywhere; opacity: .75; }
+        .watchSyncWatched { color: #9be9a8; font-weight: 600; }
+        .watchSyncUnwatched { color: #f0ad4e; font-weight: 600; }
+        .watchSyncUnknown { opacity: .75; }
         .watchSyncError { margin-top: 1em; color: #ff8a80; }
         .watchSyncSuccess { margin-top: 1em; color: #9be9a8; }
         .watchSyncWarning { padding: .8em; border-left: .25em solid #f0ad4e; background: rgba(240, 173, 78, .10); }
@@ -240,6 +243,16 @@
                     return '<div class="watchSyncSummaryItem"><span class="watchSyncSummaryValue">' + escapeHtml(number || 0) + '</span>' + escapeHtml(label) + '</div>';
                 }
 
+                function watchStateLabel(played) {
+                    if (played === true) {
+                        return '<span class="watchSyncWatched">Watched</span>';
+                    }
+                    if (played === false) {
+                        return '<span class="watchSyncUnwatched">Unwatched</span>';
+                    }
+                    return '<span class="watchSyncUnknown">Unknown</span>';
+                }
+
                 function renderPreview(preview) {
                     var summary = value(preview, 'summary') || {};
                     var users = value(preview, 'users') || [];
@@ -259,9 +272,9 @@
                             html += '<div class="watchSyncEmpty">No catalog rows.</div>';
                             return;
                         }
-                        html += '<div class="watchSyncTableWrap"><table class="watchSyncTable"><thead><tr><th>Title</th><th>Match</th><th>Action</th><th>Path</th></tr></thead><tbody>';
+                        html += '<div class="watchSyncTableWrap"><table class="watchSyncTable"><thead><tr><th>Title</th><th>Plex state</th><th>Jellyfin state</th><th>Match</th><th>Action</th><th>Path</th></tr></thead><tbody>';
                         items.forEach(function (item) {
-                            html += '<tr><td>' + escapeHtml(value(item, 'title')) + '</td><td>' + escapeHtml(value(item, 'matchStatus')) + '</td><td>' + escapeHtml(value(item, 'action')) + '<br><small>' + escapeHtml(value(item, 'reason')) + '</small></td><td class="watchSyncPath">' + escapeHtml(value(item, 'path')) + '</td></tr>';
+                            html += '<tr><td>' + escapeHtml(value(item, 'title')) + '</td><td>' + watchStateLabel(value(item, 'plexPlayed')) + '</td><td>' + watchStateLabel(value(item, 'jellyfinPlayed')) + '</td><td>' + escapeHtml(value(item, 'matchStatus')) + '</td><td>' + escapeHtml(value(item, 'action')) + '<br><small>' + escapeHtml(value(item, 'reason')) + '</small></td><td class="watchSyncPath">' + escapeHtml(value(item, 'path')) + '</td></tr>';
                         });
                         html += '</tbody></table></div>';
                         if (value(user, 'itemsTruncated')) {
