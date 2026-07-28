@@ -17,7 +17,11 @@ CURL_RETRY=(
     --max-time 10
 )
 
-public_info="$(curl --fail --silent --show-error "$JELLYFIN_URL/System/Info/Public")"
+public_info="$(
+    curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
+        "$JELLYFIN_URL/System/Info/Public"
+)"
 if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
     user_ready_started_at="$(date +%s)"
     until curl --fail --silent --show-error "$JELLYFIN_URL/Startup/User" \
@@ -75,6 +79,7 @@ chmod 600 "$TOKEN_FILE"
 
 system_configuration="$(
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --header "X-Emby-Token: $token" \
         "$JELLYFIN_URL/System/Configuration"
 )"
@@ -82,6 +87,7 @@ if [ "$(jq -r '.ServerName' <<<"$system_configuration")" != "$JELLYFIN_SERVER_NA
     jq --arg serverName "$JELLYFIN_SERVER_NAME" '.ServerName = $serverName' \
         <<<"$system_configuration" \
         | curl --fail --silent --show-error \
+            "${CURL_RETRY[@]}" \
             --request POST \
             --header 'Content-Type: application/json' \
             --header "X-Emby-Token: $token" \
@@ -95,6 +101,7 @@ add_library() {
     local path="$3"
 
     if curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --header "X-Emby-Token: $token" \
         "$JELLYFIN_URL/Library/VirtualFolders" \
         | jq -e --arg name "$name" '.[] | select(.Name == $name)' >/dev/null; then
@@ -102,6 +109,7 @@ add_library() {
     fi
 
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --request POST \
         --header "X-Emby-Token: $token" \
         --get \
