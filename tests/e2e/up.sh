@@ -11,8 +11,14 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     set +a
 fi
 
+PLUGIN_VERSION="0.3.0.1"
+PLUGIN_DIRECTORY="$SCRIPT_DIR/state/jellyfin-config/plugins/Watch State Sync_$PLUGIN_VERSION"
+
+# A versioned plugin directory is Jellyfin's cache key for embedded configuration
+# pages. Remove only this fixture's previous plugin directory before installing.
+rm -rf "$SCRIPT_DIR/state/jellyfin-config/plugins/Watch State Sync_0.1.0.0"
 mkdir -p \
-    "$SCRIPT_DIR/state/jellyfin-config/plugins/Watch State Sync_0.1.0.0" \
+    "$PLUGIN_DIRECTORY" \
     "$SCRIPT_DIR/state/jellyfin-cache" \
     "$SCRIPT_DIR/state/plex-config" \
     "$SCRIPT_DIR/state/plex-transcode"
@@ -27,7 +33,8 @@ if [ ! -f "$PLUGIN_DLL" ]; then
 fi
 cp \
     "$PLUGIN_DLL" \
-    "$SCRIPT_DIR/state/jellyfin-config/plugins/Watch State Sync_0.1.0.0/Jellyfin.Plugin.WatchStateSync.dll"
+    "$PLUGIN_DIRECTORY/Jellyfin.Plugin.WatchStateSync.dll"
+cp "$REPO_DIR/deploy/malcolm/meta.json" "$PLUGIN_DIRECTORY/meta.json"
 "$SCRIPT_DIR/generate-media.sh"
 
 docker compose --env-file "$SCRIPT_DIR/.env.example" \
