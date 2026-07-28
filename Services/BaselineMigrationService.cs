@@ -185,6 +185,18 @@ public sealed class BaselineMigrationService
             {
                 result.CompletedAtUtc = DateTimeOffset.UtcNow;
                 result.Items = itemResults;
+                try
+                {
+                    result.LedgerEntriesWritten = await WriteLedgerAsync(
+                        current.UserPlans,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    result.LedgerError = ex.Message;
+                    _logger.LogError(ex, "Failed to persist the baseline migration watermark ledger");
+                }
+
                 await WriteAuditAsync(result, CancellationToken.None).ConfigureAwait(false);
                 _previews.TryRemove(previewId, out _);
             }
@@ -306,6 +318,7 @@ public sealed class BaselineMigrationService
             });
             userPlans.Add(new UserExecutionPlan(
                 user.Id,
+                mapping.PlexUserId,
                 mapping.PlexUsername,
                 plan));
         }
@@ -358,7 +371,10 @@ public sealed class BaselineMigrationService
                     i.Id,
                     i.Name,
                     i.Path,
-                    userData.Played);
+                    userData.Played,
+                    userData.LastPlayedDate.HasValue
+                        ? new DateTimeOffset(userData.LastPlayedDate.Value.ToUniversalTime())
+                        : null);
             })
             .ToArray();
     }
@@ -440,6 +456,84 @@ public sealed class BaselineMigrationService
         File.Move(temporary, destination, true);
     }
 
+    private async Task<int> WriteLedgerAsync(
+        IReadOnlyList<UserExecutionPlan> userPlans,
+        CancellationToken cancellationToken)
+    {
+        string dataFolder = Plugin.Instance?.DataFolderPath
+            ?? throw new InvalidOperationException("Watch State Sync data directory is unavailable.");
+        Directory.CreateDirectory(dataFolder);
+        string destination = Path.Combine(dataFolder, "baseline-ledger.json");
+        BaselineLedgerDto existing = new();
+        if (File.Exists(destination))
+        {
+            await using FileStream input = File.OpenRead(destination);
+            existing = await JsonSerializer
+                .DeserializeAsync<BaselineLedgerDto>(
+                    input,
+                    AuditJsonOptions,
+                    cancellationToken)
+                .ConfigureAwait(false)
+                ?? new BaselineLedgerDto();
+        }
+
+        Dictionary<(Guid UserId, Guid ItemId), BaselineLedgerEntryDto> entries = existing.Entries
+            .ToDictionary(i => (i.JellyfinUserId, i.JellyfinItemId));
+        DateTimeOffset observedAt = DateTimeOffset.UtcNow;
+        int written = 0;
+        foreach (UserExecutionPlan userPlan in userPlans)
+        {
+            User user = _userManager.GetUserById(userPlan.JellyfinUserId)
+                ?? throw new InvalidOperationException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Jellyfin user {userPlan.JellyfinUserId} no longer exists."));
+            foreach (BaselinePlannedItem planItem in userPlan.Plan.Items.Where(i => i.MatchStatus == BaselineMatchStatus.Matched))
+            {
+                BaseItem item = _libraryManager.GetItemById(planItem.JellyfinItemId!.Value)
+                    ?? throw new InvalidOperationException("A matched Jellyfin item disappeared while writing the baseline ledger.");
+                UserItemData userData = _userDataManager.GetUserData(user, item)
+                    ?? new UserItemData { Key = item.Id.ToString("N", CultureInfo.InvariantCulture) };
+                entries[(user.Id, item.Id)] = new BaselineLedgerEntryDto
+                {
+                    JellyfinUserId = user.Id,
+                    PlexUserId = userPlan.PlexUserId,
+                    PlexUsername = userPlan.PlexUsername,
+                    JellyfinItemId = item.Id,
+                    PlexRatingKey = planItem.PlexRatingKey!,
+                    Path = CanonicalPathMatcher.Normalize(item.Path),
+                    PlexPlayed = planItem.PlexPlayed!.Value,
+                    JellyfinPlayed = userData.Played,
+                    PlexLastViewedAt = planItem.PlexLastViewedAt,
+                    JellyfinLastPlayedDate = userData.LastPlayedDate.HasValue
+                        ? new DateTimeOffset(userData.LastPlayedDate.Value.ToUniversalTime())
+                        : null,
+                    ObservedAtUtc = observedAt
+                };
+                written++;
+            }
+        }
+
+        var ledger = new BaselineLedgerDto
+        {
+            UpdatedAtUtc = observedAt,
+            Entries = entries.Values
+                .OrderBy(i => i.JellyfinUserId)
+                .ThenBy(i => i.JellyfinItemId)
+                .ToArray()
+        };
+        string temporary = destination + ".tmp";
+        await using (FileStream output = File.Create(temporary))
+        {
+            await JsonSerializer
+                .SerializeAsync(output, ledger, AuditJsonOptions, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        File.Move(temporary, destination, true);
+        return written;
+    }
+
     private static string GetAuditDirectory()
     {
         string dataFolder = Plugin.Instance?.DataFolderPath
@@ -498,6 +592,10 @@ public sealed class BaselineMigrationService
                     .Append('|')
                     .Append(item.JellyfinPlayed)
                     .Append('|')
+                    .Append(item.PlexLastViewedAt)
+                    .Append('|')
+                    .Append(item.JellyfinLastPlayedDate)
+                    .Append('|')
                     .Append(item.MatchStatus)
                     .Append('|')
                     .Append(item.Action)
@@ -526,6 +624,7 @@ public sealed class BaselineMigrationService
 
     private sealed record UserExecutionPlan(
         Guid JellyfinUserId,
+        string PlexUserId,
         string PlexUsername,
         BaselineMigrationPlan Plan);
 

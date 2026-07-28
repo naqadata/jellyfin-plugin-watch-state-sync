@@ -20,7 +20,8 @@ public sealed record JellyfinWatchStateItem(
     Guid ItemId,
     string Title,
     string Path,
-    bool Played);
+    bool Played,
+    DateTimeOffset? LastPlayedDate);
 
 /// <summary>
 /// Match classifications emitted by the baseline planner.
@@ -65,6 +66,8 @@ public sealed record BaselinePlannedItem(
     string? Path,
     bool? PlexPlayed,
     bool? JellyfinPlayed,
+    DateTimeOffset? PlexLastViewedAt,
+    DateTimeOffset? JellyfinLastPlayedDate,
     BaselineMatchStatus MatchStatus,
     BaselineMigrationAction Action,
     string Reason);
@@ -142,6 +145,8 @@ public static class BaselineMigrationPlanner
                     plexItem.Paths.FirstOrDefault(),
                     plexItem.Played,
                     null,
+                    plexItem.LastViewedAt,
+                    null,
                     BaselineMatchStatus.UnmatchedPlex,
                     BaselineMigrationAction.None,
                     "No Jellyfin movie or episode has an exact canonical media path."));
@@ -156,6 +161,8 @@ public static class BaselineMigrationPlanner
                     plexItem.Title,
                     plexItem.Paths.FirstOrDefault(),
                     plexItem.Played,
+                    null,
+                    plexItem.LastViewedAt,
                     null,
                     BaselineMatchStatus.Ambiguous,
                     BaselineMigrationAction.None,
@@ -185,6 +192,8 @@ public static class BaselineMigrationPlanner
                     matchedPath,
                     plexItem.Played,
                     jellyfinItem.Played,
+                    plexItem.LastViewedAt,
+                    jellyfinItem.LastPlayedDate,
                     BaselineMatchStatus.Ambiguous,
                     BaselineMigrationAction.None,
                     "Multiple Plex items resolve to the same Jellyfin item."));
@@ -204,6 +213,8 @@ public static class BaselineMigrationPlanner
                 matchedPath,
                 plexItem.Played,
                 jellyfinItem.Played,
+                plexItem.LastViewedAt,
+                jellyfinItem.LastPlayedDate,
                 BaselineMatchStatus.Matched,
                 action,
                 action switch
@@ -225,6 +236,8 @@ public static class BaselineMigrationPlanner
                     CanonicalPathMatcher.Normalize(i.Path),
                     null,
                     i.Played,
+                    null,
+                    i.LastPlayedDate,
                     BaselineMatchStatus.UnmatchedJellyfin,
                     BaselineMigrationAction.None,
                     "No Plex movie or episode has an exact canonical media path.")));

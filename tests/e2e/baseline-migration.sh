@@ -151,8 +151,21 @@ apply_result="$(
         --data "$(jq -n --arg previewId "$preview_id" '{PreviewId:$previewId}')" \
         "$JELLYFIN_URL/WatchStateSync/Admin/Baseline/Apply"
 )"
-jq -e '.Attempted == 2 and .Applied == 2 and .Failed == 0 and .Cancelled == false' \
+jq -e '
+    .Attempted == 2
+    and .Applied == 2
+    and .Failed == 0
+    and .Cancelled == false
+    and .LedgerEntriesWritten == 2
+    and .LedgerError == null
+' \
     <<<"$apply_result" >/dev/null
+ledger_file="$SCRIPT_DIR/state/jellyfin-config/plugins/Jellyfin.Plugin.WatchStateSync/baseline-ledger.json"
+jq -e '.Entries | length == 2' "$ledger_file" >/dev/null
+if grep -F "$PLEX_TOKEN" "$ledger_file" >/dev/null; then
+    echo "The baseline ledger must never contain a Plex token" >&2
+    exit 1
+fi
 
 movie_after="$(
     curl --fail --silent --show-error \
@@ -220,4 +233,4 @@ jq -e 'length == 1 and .[0].Applied == 2 and .[0].Failed == 0' <<<"$audits" >/de
 echo "Manual baseline migration applied both watched-state directions"
 echo "A second dry run proposed no changes"
 echo "A source change invalidated its stale preview before any write"
-echo "The durable apply audit is available through the plugin API"
+echo "The durable token-free watermark ledger and apply audit were written"

@@ -317,7 +317,99 @@ public sealed class BaselineMigrationApplyResultDto
     public int Failed { get; set; }
 
     /// <summary>
+    /// Gets or sets the number of confident match fingerprints written to the baseline ledger.
+    /// </summary>
+    public int LedgerEntriesWritten { get; set; }
+
+    /// <summary>
+    /// Gets or sets a ledger persistence error. Item writes may still have succeeded.
+    /// </summary>
+    public string? LedgerError { get; set; }
+
+    /// <summary>
     /// Gets or sets applied item results.
     /// </summary>
     public IReadOnlyList<BaselineMigrationApplyItemDto> Items { get; set; } = [];
+}
+
+/// <summary>
+/// Durable starting watermark for future completed-view synchronization.
+/// </summary>
+public sealed class BaselineLedgerDto
+{
+    /// <summary>
+    /// Gets or sets the latest ledger update time.
+    /// </summary>
+    public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    /// <summary>
+    /// Gets or sets one entry per mapped user and confidently matched media item.
+    /// </summary>
+    public IReadOnlyList<BaselineLedgerEntryDto> Entries { get; set; } = [];
+}
+
+/// <summary>
+/// Token-free state fingerprint captured after a baseline apply.
+/// </summary>
+public sealed class BaselineLedgerEntryDto
+{
+    /// <summary>
+    /// Gets or sets the Jellyfin user identifier.
+    /// </summary>
+    public Guid JellyfinUserId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the configured Plex user identifier.
+    /// </summary>
+    public string PlexUserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the configured Plex username.
+    /// </summary>
+    public string PlexUsername { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Jellyfin item identifier.
+    /// </summary>
+    public Guid JellyfinItemId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Plex rating key.
+    /// </summary>
+    public string PlexRatingKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the canonical exact-match path.
+    /// </summary>
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the observed Plex watched state.
+    /// </summary>
+    public bool PlexPlayed { get; set; }
+
+    /// <summary>
+    /// Gets or sets the observed Jellyfin watched state after apply.
+    /// </summary>
+    public bool JellyfinPlayed { get; set; }
+
+    /// <summary>
+    /// Gets or sets Plex's last-viewed evidence.
+    /// </summary>
+    public DateTimeOffset? PlexLastViewedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets Jellyfin's last-played evidence.
+    /// </summary>
+    public DateTimeOffset? JellyfinLastPlayedDate { get; set; }
+
+    /// <summary>
+    /// Gets or sets observation time.
+    /// </summary>
+    public DateTimeOffset ObservedAtUtc { get; set; }
+
+    /// <summary>
+    /// Gets or sets the confidence-ranked match method.
+    /// </summary>
+    public string MatchMethod { get; set; } = "ExactPath";
 }

@@ -290,7 +290,12 @@
                         state.preview = null;
                         page.querySelector('#ApplyBaselineMigration').disabled = true;
                         Dashboard.hideLoadingMsg();
-                        showMessage('Baseline complete: ' + value(result, 'applied') + ' applied, ' + value(result, 'failed') + ' failed. Audit ' + value(result, 'auditId') + '.', value(result, 'failed') > 0);
+                        var ledgerError = value(result, 'ledgerError');
+                        var message = 'Baseline complete: ' + value(result, 'applied') + ' applied, ' + value(result, 'failed') + ' failed, ' + value(result, 'ledgerEntriesWritten') + ' watermark entries recorded. Audit ' + value(result, 'auditId') + '.';
+                        if (ledgerError) {
+                            message += ' Ledger error: ' + ledgerError;
+                        }
+                        showMessage(message, value(result, 'failed') > 0 || !!ledgerError);
                         loadAudits();
                     }).catch(function (error) {
                         Dashboard.hideLoadingMsg();
@@ -309,7 +314,7 @@
                         container.className = '';
                         container.innerHTML = audits.map(function (audit) {
                             return '<div class="watchSyncMapping"><strong>' + escapeHtml(new Date(value(audit, 'startedAtUtc')).toLocaleString()) + '</strong>' +
-                                '<div>Applied: ' + escapeHtml(value(audit, 'applied')) + ' · Failed: ' + escapeHtml(value(audit, 'failed')) + ' · Cancelled: ' + escapeHtml(!!value(audit, 'cancelled')) + '</div>' +
+                                '<div>Applied: ' + escapeHtml(value(audit, 'applied')) + ' · Failed: ' + escapeHtml(value(audit, 'failed')) + ' · Watermarks: ' + escapeHtml(value(audit, 'ledgerEntriesWritten')) + ' · Cancelled: ' + escapeHtml(!!value(audit, 'cancelled')) + '</div>' +
                                 '<small>Audit ' + escapeHtml(value(audit, 'auditId')) + '</small></div>';
                         }).join('');
                     }).catch(function (error) {
