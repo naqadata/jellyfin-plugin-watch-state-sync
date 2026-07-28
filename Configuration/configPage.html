@@ -120,6 +120,21 @@
                         data: JSON.stringify(body || {}),
                         contentType: 'application/json',
                         dataType: 'json'
+                    }).then(function (result) {
+                        return result;
+                    }, function (error) {
+                        if (error && typeof error.json === 'function') {
+                            return error.json().then(function (responseJson) {
+                                return Promise.reject({
+                                    responseJSON: responseJson,
+                                    status: error.status,
+                                    statusText: error.statusText
+                                });
+                            }, function () {
+                                return Promise.reject(error);
+                            });
+                        }
+                        return Promise.reject(error);
                     });
                 }
 
