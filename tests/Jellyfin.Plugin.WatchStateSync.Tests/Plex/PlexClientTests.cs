@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Jellyfin.Plugin.WatchStateSync.Migration;
 using Jellyfin.Plugin.WatchStateSync.Models;
 using Jellyfin.Plugin.WatchStateSync.Plex;
@@ -51,6 +52,28 @@ public sealed class PlexClientTests
                 CancellationToken.None));
 
         Assert.Contains("token", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetWatchStateItemsAsync_ReplacesMalformedUtf8Metadata()
+    {
+        byte[] malformedPage =
+        [
+            .. Encoding.UTF8.GetBytes("{\"MediaContainer\":{\"size\":1,\"totalSize\":1,\"Metadata\":[{\"ratingKey\":\"42\",\"title\":\"Bad "),
+            0xff,
+            .. Encoding.UTF8.GetBytes(" title\",\"Media\":[{\"Part\":[{\"file\":\"/media/Movie.mp4\"}]}]}]}}")
+        ];
+        var handler = new RawQueueHandler(
+            Encoding.UTF8.GetBytes("{\"MediaContainer\":{\"Directory\":[{\"key\":\"1\",\"type\":\"movie\"}]}}"),
+            malformedPage);
+        using var client = new PlexClient(new HttpClient(handler));
+
+        IReadOnlyList<PlexWatchStateItem> items = await client.GetWatchStateItemsAsync(
+            "http://plex:32400",
+            "token",
+            CancellationToken.None);
+
+        Assert.Equal("42", Assert.Single(items).RatingKey);
     }
 
     [Fact]
@@ -135,6 +158,24 @@ public sealed class PlexClientTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(_responses.Dequeue())
+            });
+        }
+    }
+
+    private sealed class RawQueueHandler : HttpMessageHandler
+    {
+        private readonly Queue<byte[]> _responses;
+
+        public RawQueueHandler(params byte[][] responses)
+        {
+            _responses = new Queue<byte[]>(responses);
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(_responses.Dequeue())
             });
         }
     }

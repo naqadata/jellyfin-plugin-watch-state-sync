@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 using Jellyfin.Plugin.WatchStateSync.Migration;
@@ -336,7 +337,12 @@ public sealed class PlexClient : IDisposable
         }
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(
+            stream,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false),
+            detectEncodingFromByteOrderMarks: true);
+        string json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        return JsonDocument.Parse(json);
     }
 
     private async Task<string> GetTextAsync(
