@@ -30,11 +30,12 @@ plex_home_users="$(
         "${plex_headers[@]}" \
         'https://plex.tv/api/v2/home/users'
 )"
-plex_user_id="$(
+plex_home_user_uuid="$(
     jq -er --arg username "${PLEX_USERNAME:-$JELLYFIN_USERNAME}" \
         '.users[] | select((.title // .username) == $username) | .uuid' \
         <<<"$plex_home_users"
 )"
+plex_user_id="home:$plex_home_user_uuid"
 
 jellyfin_user_id="$(
     curl --fail --silent --show-error \
