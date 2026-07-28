@@ -177,6 +177,38 @@ idempotency_preview="$(
 )"
 jq -e '.Summary.MarkWatched == 0 and .Summary.MarkUnwatched == 0 and .Summary.NoChange == 2' \
     <<<"$idempotency_preview" >/dev/null
+idempotency_preview_id="$(jq -er '.PreviewId' <<<"$idempotency_preview")"
+
+# A preview is not permission to apply a later source state. Mutate Plex after
+# the preview and prove the plugin rejects it before any Jellyfin write.
+curl --fail --silent --show-error \
+    --request GET \
+    "${plex_headers[@]}" \
+    --get \
+    --data-urlencode "key=$plex_episode_key" \
+    --data-urlencode 'identifier=com.plexapp.plugins.library' \
+    "$PLEX_URL/:/scrobble" >/dev/null
+stale_status="$(
+    curl --silent --show-error \
+        --output /dev/null \
+        --write-out '%{http_code}' \
+        --request POST \
+        --header 'Content-Type: application/json' \
+        "${jellyfin_headers[@]}" \
+        --data "$(jq -n --arg previewId "$idempotency_preview_id" '{PreviewId:$previewId}')" \
+        "$JELLYFIN_URL/WatchStateSync/Admin/Baseline/Apply"
+)"
+if [ "$stale_status" != "409" ]; then
+    echo "Expected stale preview apply to return HTTP 409, got $stale_status" >&2
+    exit 1
+fi
+curl --fail --silent --show-error \
+    --request GET \
+    "${plex_headers[@]}" \
+    --get \
+    --data-urlencode "key=$plex_episode_key" \
+    --data-urlencode 'identifier=com.plexapp.plugins.library' \
+    "$PLEX_URL/:/unscrobble" >/dev/null
 
 audits="$(
     curl --fail --silent --show-error \
@@ -187,4 +219,5 @@ jq -e 'length == 1 and .[0].Applied == 2 and .[0].Failed == 0' <<<"$audits" >/de
 
 echo "Manual baseline migration applied both watched-state directions"
 echo "A second dry run proposed no changes"
+echo "A source change invalidated its stale preview before any write"
 echo "The durable apply audit is available through the plugin API"

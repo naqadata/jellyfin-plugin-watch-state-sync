@@ -143,7 +143,8 @@ public sealed class BaselineMigrationService
             {
                 AuditId = Guid.NewGuid(),
                 PreviewId = previewId,
-                StartedAtUtc = DateTimeOffset.UtcNow
+                StartedAtUtc = DateTimeOffset.UtcNow,
+                Summary = cached.Dto.Summary
             };
             var itemResults = new List<BaselineMigrationApplyItemDto>();
 

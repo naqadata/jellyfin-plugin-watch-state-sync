@@ -297,6 +297,11 @@ public sealed class BaselineMigrationApplyResultDto
     public bool Cancelled { get; set; }
 
     /// <summary>
+    /// Gets or sets the full dry-run summary that authorized this apply.
+    /// </summary>
+    public BaselineMigrationSummaryDto Summary { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the number of proposed writes.
     /// </summary>
     public int Attempted { get; set; }
