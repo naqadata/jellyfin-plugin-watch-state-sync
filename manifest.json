@@ -14,6 +14,14 @@
         "sourceUrl": "https://raw.githubusercontent.com/naqadata/jellyfin-plugin-watch-state-sync/main/dist/Jellyfin.Plugin.WatchStateSync_0.3.0.2.zip",
         "checksum": "9f658c4e4856a818a6fa40319c85f98c",
         "timestamp": "2026-07-28T20:45:56Z"
+      },
+      {
+        "version": "0.3.0.3",
+        "changelog": "Fix plugin assembly version metadata for Jellyfin catalog installation.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/naqadata/jellyfin-plugin-watch-state-sync/main/dist/Jellyfin.Plugin.WatchStateSync_0.3.0.3.zip",
+        "checksum": "85f80bdd5649c2883fb338552481273a",
+        "timestamp": "2026-07-28T20:50:09Z"
       }
     ]
   }
