@@ -11,7 +11,7 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     set +a
 fi
 
-PLUGIN_VERSION="0.3.0.1"
+PLUGIN_VERSION="0.3.0.2"
 PLUGIN_DIRECTORY="$SCRIPT_DIR/state/jellyfin-config/plugins/Watch State Sync_$PLUGIN_VERSION"
 
 # A versioned plugin directory is Jellyfin's cache key for embedded configuration

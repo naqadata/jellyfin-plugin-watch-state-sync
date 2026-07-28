@@ -21,6 +21,7 @@ namespace Jellyfin.Plugin.WatchStateSync.Services;
 public sealed class WatchStateSyncService : BackgroundService
 {
     private const int MinimumPollIntervalSeconds = 30;
+    private const int MaximumPollIntervalSeconds = 60 * 60;
     private const int DisabledConfigurationCheckSeconds = 15;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
@@ -54,7 +55,7 @@ public sealed class WatchStateSyncService : BackgroundService
         {
             PluginConfiguration? configuration = Plugin.Instance?.Configuration;
             int intervalSeconds = configuration?.EnableLiveSync == true
-                ? Math.Max(MinimumPollIntervalSeconds, configuration.PollIntervalSeconds)
+                ? Math.Clamp(configuration.PollIntervalSeconds, MinimumPollIntervalSeconds, MaximumPollIntervalSeconds)
                 : DisabledConfigurationCheckSeconds;
             if (configuration?.EnableLiveSync == true)
             {

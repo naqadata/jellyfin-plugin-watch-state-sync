@@ -63,7 +63,19 @@
                         </div>
                         <div class="checkboxContainer checkboxContainer-withDescription">
                             <label class="emby-checkbox-label"><input id="EnableLiveSync" type="checkbox" is="emby-checkbox" /><span>Enable completed-view live sync</span></label>
-                            <div class="fieldDescription">Every 60 seconds, the plugin copies a newer Plex <code>lastViewedAt</code> or Jellyfin <code>LastPlayedDate</code> to the other server. It only marks items played; deliberate watched/unwatched changes are never synchronized.</div>
+                            <div class="fieldDescription">The plugin copies a newer Plex <code>lastViewedAt</code> or Jellyfin <code>LastPlayedDate</code> to the other server. It only marks items played; deliberate watched/unwatched changes are never synchronized.</div>
+                        </div>
+                        <div class="selectContainer">
+                            <label class="selectLabel" for="PollIntervalSeconds">Live-sync interval</label>
+                            <select id="PollIntervalSeconds" is="emby-select">
+                                <option value="30">Every 30 seconds</option>
+                                <option value="60">Every minute</option>
+                                <option value="300">Every 5 minutes</option>
+                                <option value="900">Every 15 minutes</option>
+                                <option value="1800">Every 30 minutes</option>
+                                <option value="3600">Every 60 minutes</option>
+                            </select>
+                            <div class="fieldDescription">Applies while live sync is enabled. The supported range is 30 seconds to 60 minutes.</div>
                         </div>
                         <div id="WatchSyncMappings"></div>
                         <div class="watchSyncActions">
@@ -271,6 +283,7 @@
                         config.PlexAdminToken = page.querySelector('#PlexAdminToken').value.trim() || value(config, 'plexAdminToken') || '';
                         config.UserMappings = collectMappings();
                         config.EnableLiveSync = page.querySelector('#EnableLiveSync').checked;
+                        config.PollIntervalSeconds = parseInt(page.querySelector('#PollIntervalSeconds').value, 10) || 60;
                         return ApiClient.updatePluginConfiguration(pluginId, config);
                     }).then(function (result) {
                         state.preview = null;
@@ -410,6 +423,9 @@
                         page.querySelector('#PlexServerUrl').value = value(state.config, 'plexServerUrl') || '';
                         page.querySelector('#PlexAdminToken').placeholder = value(state.config, 'plexAdminToken') ? 'Stored administrator token — leave blank to keep it' : 'Required to discover Plex users';
                         page.querySelector('#EnableLiveSync').checked = value(state.config, 'enableLiveSync') === true;
+                        var interval = String(value(state.config, 'pollIntervalSeconds') || 60);
+                        var intervalSelect = page.querySelector('#PollIntervalSeconds');
+                        intervalSelect.value = intervalSelect.querySelector('option[value="' + interval + '"]') ? interval : '60';
                         renderMappings();
                         return loadAudits();
                     }).then(function () {
