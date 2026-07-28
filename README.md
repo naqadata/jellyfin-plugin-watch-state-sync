@@ -17,9 +17,12 @@ validation.
 
 The repository contains:
 
-- a Jellyfin `10.11.6`-compatible plugin scaffold;
-- initial connection configuration;
-- a testable canonical-path matcher;
+- a Jellyfin `10.11.6`-compatible plugin;
+- per-user Plex token and username mapping configuration;
+- mandatory dry-run and explicit-apply baseline controls;
+- conservative unique exact-path matching;
+- Plex-authoritative watched and unwatched writes through Jellyfin's API;
+- stale-preview rejection, durable audits, and token-free baseline watermarks;
 - native .NET unit tests;
 - isolated Jellyfin and Plex Docker fixtures;
 - deterministic shared movie and episode media generation.
@@ -68,6 +71,7 @@ After deployment, manage it from Cortana's Ubuntu WSL environment:
 cd /opt/watch-state-sync-dev
 ./deploy/cortana/up.sh
 ./deploy/cortana/status.sh
+./deploy/cortana/test-baseline.sh
 ./deploy/cortana/down.sh
 ```
 
