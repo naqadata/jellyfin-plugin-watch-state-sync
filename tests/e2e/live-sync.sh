@@ -39,6 +39,15 @@ config="$(curl --fail --silent --show-error "${jellyfin_headers[@]}" "$JELLYFIN_
 updated_config="$(jq '.EnableLiveSync = true | .PollIntervalSeconds = 30' <<<"$config")"
 curl --fail --silent --show-error --request POST --header 'Content-Type: application/json' "${jellyfin_headers[@]}" --data "$updated_config" "$JELLYFIN_URL/Plugins/$PLUGIN_ID/Configuration" >/dev/null
 
+disable_live_sync() {
+    local current_config
+    current_config="$(curl --fail --silent "${jellyfin_headers[@]}" "$JELLYFIN_URL/Plugins/$PLUGIN_ID/Configuration")" || return 0
+    curl --fail --silent --request POST --header 'Content-Type: application/json' "${jellyfin_headers[@]}" \
+        --data "$(jq '.EnableLiveSync = false' <<<"$current_config")" \
+        "$JELLYFIN_URL/Plugins/$PLUGIN_ID/Configuration" >/dev/null || true
+}
+trap disable_live_sync EXIT
+
 episode_is_played_in_jellyfin() {
     curl --fail --silent --show-error "${jellyfin_headers[@]}" "$JELLYFIN_URL/Users/$jellyfin_user_id/Items/$jellyfin_episode_id" \
         | jq -e '.UserData.Played == true and .UserData.LastPlayedDate != null' >/dev/null
