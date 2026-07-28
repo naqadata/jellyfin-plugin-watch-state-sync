@@ -133,6 +133,22 @@ public sealed class PlexClientTests
         Assert.Equal("/api/servers/machine/shared_servers", handler.Requests[1].Uri?.AbsolutePath);
     }
 
+    [Fact]
+    public async Task MarkPlayedAsync_ScrobblesWithTheMappedUsersToken()
+    {
+        var handler = new QueueHandler("{}");
+        using var client = new PlexClient(new HttpClient(handler));
+
+        await client.MarkPlayedAsync("http://plex:32400", "mapped-token", "42", CancellationToken.None);
+
+        (Uri? uri, string? token, HttpMethod method) = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Get, method);
+        Assert.Equal("mapped-token", token);
+        Assert.Equal("/:/scrobble", uri?.AbsolutePath);
+        Assert.Contains("key=42", uri?.Query, StringComparison.Ordinal);
+        Assert.Contains("identifier=com.plexapp.plugins.library", uri?.Query, StringComparison.Ordinal);
+    }
+
     private sealed class QueueHandler : HttpMessageHandler
     {
         private readonly Queue<string> _responses;

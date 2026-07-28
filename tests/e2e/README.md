@@ -50,6 +50,13 @@ The current smoke test proves:
 User creation, watched-state mutation, and migration assertions will be added as
 the corresponding plugin adapters are implemented.
 
+On the claimed Cortana stack, exercise the complete timestamp-only worker in
+both directions:
+
+```bash
+./deploy/cortana/test-live-sync.sh
+```
+
 ## Lifecycle
 
 `down.sh` preserves fixture state for fast restarts:

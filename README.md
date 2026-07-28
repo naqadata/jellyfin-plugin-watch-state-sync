@@ -18,7 +18,7 @@ validation.
 The repository contains:
 
 - a Jellyfin `10.11.6`-compatible plugin;
-- per-user Plex token and username mapping configuration;
+- one Plex administrator token with mapped Plex Home or shared-user profiles;
 - mandatory dry-run and explicit-apply baseline controls;
 - conservative unique exact-path matching;
 - Plex-authoritative watched and unwatched writes through Jellyfin's API;
@@ -27,8 +27,11 @@ The repository contains:
 - isolated Jellyfin and Plex Docker fixtures;
 - deterministic shared movie and episode media generation.
 
-The manual Plex-to-Jellyfin baseline migration is implemented. Completed-view
-live sync remains deferred.
+The manual Plex-to-Jellyfin baseline migration is implemented. An opt-in simple
+live-sync mode is also available. Every 60 seconds it compares Plex
+`lastViewedAt` and Jellyfin `LastPlayedDate` for uniquely path-matched movies and episodes,
+then marks the older side played. It never clears state or attempts to infer deliberate
+watched/unwatched changes.
 
 ## Build and test
 

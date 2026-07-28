@@ -11,6 +11,7 @@ cd /opt/watch-state-sync-dev
 ./deploy/cortana/up.sh
 ./deploy/cortana/status.sh
 ./deploy/cortana/test-baseline.sh
+./deploy/cortana/test-live-sync.sh
 ./deploy/cortana/down.sh
 ```
 
@@ -30,6 +31,10 @@ so the sync plugin can make authenticated calls.
 `test-baseline.sh` deliberately creates opposite watched states for the sample
 movie and episode, runs the plugin's required dry run, explicitly applies that
 preview, verifies both writes, and proves a second dry run is idempotent.
+
+`test-live-sync.sh` first establishes that baseline mapping, then proves a new
+completed view propagates from Plex to Jellyfin and from Jellyfin to Plex. It
+uses only generated fixture media and users.
 
 ## Network access
 

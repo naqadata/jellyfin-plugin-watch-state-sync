@@ -240,6 +240,39 @@ public sealed class PlexClient : IDisposable
         return userToken;
     }
 
+    /// <summary>
+    /// Marks an item played for the token-scoped Plex user.
+    /// </summary>
+    public async Task MarkPlayedAsync(
+        string serverUrl,
+        string token,
+        string ratingKey,
+        CancellationToken cancellationToken)
+    {
+        Uri baseUri = ValidateBaseUri(serverUrl);
+        EnsureToken(token, "Plex user token");
+        if (string.IsNullOrWhiteSpace(ratingKey))
+        {
+            throw new InvalidOperationException("Plex item rating key is required.");
+        }
+
+        string relativeUrl = string.Create(
+            CultureInfo.InvariantCulture,
+            $":/scrobble?key={Uri.EscapeDataString(ratingKey)}&identifier=com.plexapp.plugins.library");
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(baseUri, relativeUrl));
+        request.Headers.Add("X-Plex-Token", token);
+        request.Headers.Add("X-Plex-Product", "Jellyfin Watch State Sync");
+        request.Headers.Add("X-Plex-Version", "0.3.0");
+        request.Headers.Add("X-Plex-Client-Identifier", "jellyfin-watch-state-sync");
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(string.Create(
+                CultureInfo.InvariantCulture,
+                $"Plex returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}) while marking an item played."));
+        }
+    }
+
     private async Task<PlexUserOptionDto[]> GetSharedServerUsersAsync(
         Uri serverUri,
         string adminToken,
