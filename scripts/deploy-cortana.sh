@@ -52,3 +52,12 @@ ssh "${SSH_ARGS[@]}" \
 
 ssh "${SSH_ARGS[@]}" \
     "wsl.exe -d $CORTANA_WSL_DISTRO -u paulwitt -- $REMOTE_DIR/deploy/cortana/up.sh"
+
+forwarding_command="$(
+    iconv -f UTF-8 -t UTF-16LE \
+        "$REPO_DIR/deploy/cortana/refresh-lan-forwarding.ps1" \
+        | base64 \
+        | tr -d '\n'
+)"
+ssh "${SSH_ARGS[@]}" \
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand $forwarding_command"

@@ -29,13 +29,19 @@ so the sync plugin can make authenticated calls.
 ## Network access
 
 The containers publish WSL ports `18096` and `32410`. Windows normally exposes
-those through localhost. To reach the stack from another device on the LAN, run
-the following from an elevated Windows PowerShell prompt after WSL starts:
+those through localhost. `scripts/deploy-cortana.sh` also configures LAN
+forwarding automatically.
+
+If WSL's internal IP changes later, copy the forwarding script to a Windows
+path and run it from an elevated Windows PowerShell prompt:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File `
-  "\\wsl$\Ubuntu-24.04\opt\watch-state-sync-dev\deploy\cortana\refresh-lan-forwarding.ps1"
+$source = "\\wsl$\Ubuntu-24.04\opt\watch-state-sync-dev\deploy\cortana\refresh-lan-forwarding.ps1"
+$script = "$env:TEMP\watch-state-sync-refresh-lan.ps1"
+Copy-Item $source $script -Force
+powershell.exe -ExecutionPolicy Bypass -File $script
 ```
 
 The forwarding script limits the Windows firewall rules to the local subnet.
-Rerun it if WSL's internal IP address changes.
+Copying it to Windows before execution avoids asking `wsl.exe` to re-enter the
+same distro while PowerShell still has the script open through `\\wsl$`.
