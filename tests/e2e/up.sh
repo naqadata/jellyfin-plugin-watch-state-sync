@@ -17,9 +17,16 @@ mkdir -p \
     "$SCRIPT_DIR/state/plex-config" \
     "$SCRIPT_DIR/state/plex-transcode"
 
-dotnet build "$REPO_DIR/Jellyfin.Plugin.WatchStateSync.csproj"
+PLUGIN_DLL="${WATCH_STATE_SYNC_PLUGIN_DLL:-$REPO_DIR/bin/Debug/net9.0/Jellyfin.Plugin.WatchStateSync.dll}"
+if [ "${WATCH_STATE_SYNC_SKIP_BUILD:-false}" != "true" ]; then
+    dotnet build "$REPO_DIR/Jellyfin.Plugin.WatchStateSync.csproj"
+fi
+if [ ! -f "$PLUGIN_DLL" ]; then
+    echo "Plugin DLL not found: $PLUGIN_DLL" >&2
+    exit 1
+fi
 cp \
-    "$REPO_DIR/bin/Debug/net9.0/Jellyfin.Plugin.WatchStateSync.dll" \
+    "$PLUGIN_DLL" \
     "$SCRIPT_DIR/state/jellyfin-config/plugins/Watch State Sync_0.1.0.0/Jellyfin.Plugin.WatchStateSync.dll"
 "$SCRIPT_DIR/generate-media.sh"
 

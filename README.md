@@ -42,6 +42,31 @@ Run the Docker fixture smoke test:
 See [`tests/e2e/README.md`](tests/e2e/README.md) for authentication and lifecycle
 details.
 
+## Persistent Cortana development stack
+
+The disposable fixture also has a persistent WSL deployment wrapper for
+Cortana. It creates sample media and a Jellyfin development user, preserves
+both server databases between runs, and can be exposed to the local network for
+testing from real clients.
+
+Deploy the current checkout from macOS:
+
+```bash
+./scripts/deploy-cortana.sh
+```
+
+After deployment, manage it from Cortana's Ubuntu WSL environment:
+
+```bash
+cd /opt/watch-state-sync-dev
+./deploy/cortana/up.sh
+./deploy/cortana/status.sh
+./deploy/cortana/down.sh
+```
+
+See [`deploy/cortana/README.md`](deploy/cortana/README.md) for Plex account
+claiming and LAN forwarding details.
+
 ## Why .NET tests instead of Bazel
 
 The plugin targets Jellyfin's native C#/.NET plugin interfaces. `dotnet test`

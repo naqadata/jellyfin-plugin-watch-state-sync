@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JELLYFIN_URL="${JELLYFIN_URL:-http://127.0.0.1:${JELLYFIN_PORT:-18096}}"
 JELLYFIN_USERNAME="${JELLYFIN_USERNAME:-fixture-admin}"
 JELLYFIN_PASSWORD="${JELLYFIN_PASSWORD:-fixture-password}"
+JELLYFIN_ENABLE_REMOTE_ACCESS="${JELLYFIN_ENABLE_REMOTE_ACCESS:-false}"
 AUTHORIZATION='MediaBrowser Client="WatchStateSyncE2E", Device="DockerFixture", DeviceId="watch-state-sync-e2e", Version="0.1.0"'
 TOKEN_FILE="$SCRIPT_DIR/state/jellyfin-token"
 
@@ -35,7 +36,9 @@ if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
     curl --fail --silent --show-error \
         --request POST \
         --header 'Content-Type: application/json' \
-        --data '{"EnableRemoteAccess":false,"EnableAutomaticPortMapping":false}' \
+        --data "$(jq -n \
+            --argjson enableRemoteAccess "$JELLYFIN_ENABLE_REMOTE_ACCESS" \
+            '{EnableRemoteAccess:$enableRemoteAccess,EnableAutomaticPortMapping:false}')" \
         "$JELLYFIN_URL/Startup/RemoteAccess" >/dev/null
 
     curl --fail --silent --show-error \
