@@ -161,7 +161,7 @@ jq -e '
 ' \
     <<<"$apply_result" >/dev/null
 ledger_file="$SCRIPT_DIR/state/jellyfin-config/plugins/Jellyfin.Plugin.WatchStateSync/baseline-ledger.json"
-jq -e '.Entries | length == 2' "$ledger_file" >/dev/null
+jq -e '.entries | length == 2' "$ledger_file" >/dev/null
 if grep -F "$PLEX_TOKEN" "$ledger_file" >/dev/null; then
     echo "The baseline ledger must never contain a Plex token" >&2
     exit 1
