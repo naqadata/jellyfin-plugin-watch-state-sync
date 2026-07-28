@@ -26,11 +26,6 @@ public sealed class UserMappingConfiguration
     public string PlexUsername { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the Plex access token for this identity.
-    /// </summary>
-    public string PlexToken { get; set; } = string.Empty;
-
-    /// <summary>
     /// Gets or sets a value indicating whether this mapping participates in synchronization.
     /// </summary>
     public bool Enabled { get; set; } = true;

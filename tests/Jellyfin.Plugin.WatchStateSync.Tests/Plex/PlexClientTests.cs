@@ -1,5 +1,6 @@
 using System.Net;
 using Jellyfin.Plugin.WatchStateSync.Migration;
+using Jellyfin.Plugin.WatchStateSync.Models;
 using Jellyfin.Plugin.WatchStateSync.Plex;
 using Xunit;
 
@@ -52,6 +53,42 @@ public sealed class PlexClientTests
         Assert.Contains("token", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task GetHomeUsersAsync_ParsesPlexHomeProfiles()
+    {
+        var handler = new QueueHandler(
+            """
+            {"users":[
+              {"uuid":"owner","title":"Owner","protected":false},
+              {"uuid":"parent","title":"Parent","protected":true}
+            ]}
+            """);
+        using var client = new PlexClient(new HttpClient(handler));
+
+        IReadOnlyList<PlexUserOptionDto> users = await client.GetHomeUsersAsync("admin-token", CancellationToken.None);
+
+        Assert.Collection(
+            users,
+            user => { Assert.Equal("owner", user.Id); Assert.False(user.IsProtected); },
+            user => { Assert.Equal("parent", user.Id); Assert.True(user.IsProtected); });
+        Assert.Equal("/api/v2/home/users", Assert.Single(handler.Requests).Uri?.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task GetHomeUserTokenAsync_SwitchesToSelectedProfile()
+    {
+        var handler = new QueueHandler("""{"authToken":"parent-token"}""");
+        using var client = new PlexClient(new HttpClient(handler));
+
+        string token = await client.GetHomeUserTokenAsync("admin-token", "parent", CancellationToken.None);
+
+        Assert.Equal("parent-token", token);
+        (Uri? uri, string? requestToken, HttpMethod method) = Assert.Single(handler.Requests);
+        Assert.Equal("admin-token", requestToken);
+        Assert.Equal(HttpMethod.Post, method);
+        Assert.Equal("/api/v2/home/users/parent/switch", uri?.AbsolutePath);
+    }
+
     private sealed class QueueHandler : HttpMessageHandler
     {
         private readonly Queue<string> _responses;
@@ -61,14 +98,14 @@ public sealed class PlexClientTests
             _responses = new Queue<string>(responses);
         }
 
-        public List<(Uri? Uri, string? Token)> Requests { get; } = [];
+        public List<(Uri? Uri, string? Token, HttpMethod Method)> Requests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             request.Headers.TryGetValues("X-Plex-Token", out IEnumerable<string>? values);
-            Requests.Add((request.RequestUri, values?.SingleOrDefault()));
+            Requests.Add((request.RequestUri, values?.SingleOrDefault(), request.Method));
             if (_responses.Count == 0)
             {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));

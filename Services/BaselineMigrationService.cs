@@ -71,6 +71,18 @@ public sealed class BaselineMigrationService
     }
 
     /// <summary>
+    /// Gets Plex Home users available to the configured administrator token.
+    /// </summary>
+    public Task<IReadOnlyList<PlexUserOptionDto>> GetPlexUsersAsync(CancellationToken cancellationToken)
+    {
+        PluginConfiguration configuration = Plugin.Instance?.Configuration
+            ?? throw new InvalidOperationException("Watch State Sync is not initialized.");
+        return string.IsNullOrWhiteSpace(configuration.PlexAdminToken)
+            ? Task.FromResult<IReadOnlyList<PlexUserOptionDto>>([])
+            : _plexClient.GetHomeUsersAsync(configuration.PlexAdminToken, cancellationToken);
+    }
+
+    /// <summary>
     /// Builds a dry-run preview and retains the exact source fingerprint for a later explicit apply.
     /// </summary>
     /// <param name="request">Preview selection.</param>
@@ -263,6 +275,10 @@ public sealed class BaselineMigrationService
         {
             throw new InvalidOperationException("Configure the Plex server URL before running a baseline migration.");
         }
+        if (string.IsNullOrWhiteSpace(configuration.PlexAdminToken))
+        {
+            throw new InvalidOperationException("Configure the Plex administrator token before running a baseline migration.");
+        }
 
         UserMappingConfiguration[] mappings = configuration.UserMappings
             .Where(i => i.Enabled)
@@ -288,10 +304,13 @@ public sealed class BaselineMigrationService
         foreach (UserMappingConfiguration mapping in mappings)
         {
             User user = ResolveUser(mapping);
+            string plexUserToken = await _plexClient
+                .GetHomeUserTokenAsync(configuration.PlexAdminToken, mapping.PlexUserId, cancellationToken)
+                .ConfigureAwait(false);
             IReadOnlyList<PlexWatchStateItem> plexItems = await _plexClient
                 .GetWatchStateItemsAsync(
                     configuration.PlexServerUrl,
-                    mapping.PlexToken,
+                    plexUserToken,
                     cancellationToken)
                 .ConfigureAwait(false);
             IReadOnlyList<JellyfinWatchStateItem> jellyfinItems = GetJellyfinItems(user);
@@ -586,7 +605,7 @@ public sealed class BaselineMigrationService
                 .Append('|')
                 .Append(mapping.PlexUsername)
                 .Append('|')
-                .Append(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(mapping.PlexToken))))
+                .Append(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(configuration.PlexAdminToken))))
                 .AppendLine();
         }
 

@@ -49,12 +49,17 @@
 
                 <section class="watchSyncSection">
                     <h2>Connection and users</h2>
-                    <p>Each enabled mapping uses its own Plex token. The Plex username defaults to the Jellyfin username but can differ.</p>
+                    <p>Use one Plex Home administrator token. The plugin discovers Plex Home users and switches to the selected profile when reading watch state.</p>
                     <form id="WatchStateSyncConfigForm">
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="PlexServerUrl">Plex server URL</label>
                             <input id="PlexServerUrl" name="PlexServerUrl" type="url" is="emby-input" placeholder="http://plex:32400" />
                             <div class="fieldDescription">Use the URL reachable from the Jellyfin server. In the Docker stack this is <code>http://plex:32400</code>.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="PlexAdminToken">Plex administrator token</label>
+                            <input id="PlexAdminToken" name="PlexAdminToken" type="password" is="emby-input" placeholder="Required to discover Plex Home users" />
+                            <div class="fieldDescription">Stored in Jellyfin plugin configuration. Save it once; individual Plex users do not need to supply tokens.</div>
                         </div>
                         <div id="WatchSyncMappings"></div>
                         <div class="watchSyncActions">
@@ -93,6 +98,7 @@
                 var state = {
                     config: null,
                     users: [],
+                    plexUsers: [],
                     preview: null
                 };
 
@@ -179,35 +185,34 @@
                     }).join('');
                 }
 
+                function plexUserOptions(selectedId) {
+                    return state.plexUsers.map(function (user) {
+                        var id = value(user, 'id');
+                        var name = value(user, 'name');
+                        var protectedLabel = value(user, 'isProtected') ? ' (PIN protected)' : '';
+                        return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selectedId) ? ' selected' : '') + '>' + escapeHtml(name + protectedLabel) + '</option>';
+                    }).join('');
+                }
+
                 function addMapping(mapping) {
                     var container = page.querySelector('#WatchSyncMappings');
                     var wrapper = document.createElement('div');
                     wrapper.className = 'watchSyncMapping';
                     wrapper.dataset.originalIndex = String(mapping && mapping.__index !== undefined ? mapping.__index : -1);
                     var selectedId = value(mapping, 'jellyfinUserId') || '';
-                    var plexUsername = value(mapping, 'plexUsername') || '';
-                    var tokenStored = !!value(mapping, 'plexToken');
+                    var plexUserId = value(mapping, 'plexUserId') || '';
                     var enabled = mapping ? value(mapping, 'enabled') !== false : true;
                     wrapper.innerHTML =
                         '<div class="watchSyncMappingHeader"><strong>User mapping</strong><button is="emby-button" type="button" class="watchSyncRemoveMapping emby-button" style="background:#252525!important;border:1px solid #4a4a4a!important;box-shadow:none!important;color:#f5f5f5!important"><span>Remove</span></button></div>' +
                         '<div class="selectContainer"><label class="selectLabel">Jellyfin user</label><select class="watchSyncJellyfinUser" is="emby-select">' +
                         '<option value="">Choose a user</option>' + userOptions(selectedId) + '</select></div>' +
-                        '<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Plex username</label><input class="watchSyncPlexUsername" type="text" is="emby-input" value="' + escapeHtml(plexUsername) + '" />' +
-                        '<div class="fieldDescription">For display and verification. The supplied token determines whose Plex state is read.</div></div>' +
-                        '<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Plex token</label><input class="watchSyncPlexToken" type="password" is="emby-input" placeholder="' + (tokenStored ? 'Stored token — leave blank to keep it' : 'Required') + '" />' +
-                        '<div class="fieldDescription">Stored in Jellyfin plugin configuration and never included in migration reports or logs.</div></div>' +
+                        '<div class="selectContainer"><label class="selectLabel">Plex Home user</label><select class="watchSyncPlexUser" is="emby-select"><option value="">Choose a Plex user</option>' + plexUserOptions(plexUserId) + '</select>' +
+                        '<div class="fieldDescription">Discovered from the Plex administrator token. PIN-protected profiles are not yet supported.</div></div>' +
                         '<div class="checkboxContainer checkboxContainer-withDescription"><label class="emby-checkbox-label"><input class="watchSyncMappingEnabled" type="checkbox" is="emby-checkbox"' + (enabled ? ' checked' : '') + ' /><span>Enabled</span></label></div>';
                     container.appendChild(wrapper);
 
                     wrapper.querySelector('.watchSyncRemoveMapping').addEventListener('click', function () {
                         wrapper.remove();
-                    });
-                    wrapper.querySelector('.watchSyncJellyfinUser').addEventListener('change', function (event) {
-                        var username = wrapper.querySelector('.watchSyncPlexUsername');
-                        if (!username.value.trim()) {
-                            var option = event.target.options[event.target.selectedIndex];
-                            username.value = option ? option.text : '';
-                        }
                     });
                 }
 
@@ -231,14 +236,13 @@
                         var selectedOption = userSelect.options[userSelect.selectedIndex];
                         var originalIndex = parseInt(wrapper.dataset.originalIndex || '-1', 10);
                         var original = originalIndex >= 0 ? existing[originalIndex] : {};
-                        var tokenInput = wrapper.querySelector('.watchSyncPlexToken').value.trim();
-                        var plexUsername = wrapper.querySelector('.watchSyncPlexUsername').value.trim();
+                        var plexSelect = wrapper.querySelector('.watchSyncPlexUser');
+                        var plexOption = plexSelect.options[plexSelect.selectedIndex];
                         return {
                             JellyfinUserId: userSelect.value,
                             JellyfinUsername: selectedOption && userSelect.value ? selectedOption.text : '',
-                            PlexUserId: value(original, 'plexUserId') || plexUsername,
-                            PlexUsername: plexUsername,
-                            PlexToken: tokenInput || value(original, 'plexToken') || '',
+                            PlexUserId: plexSelect.value,
+                            PlexUsername: plexOption && plexSelect.value ? plexOption.text.replace(/ \(PIN protected\)$/, '') : '',
                             Enabled: wrapper.querySelector('.watchSyncMappingEnabled').checked
                         };
                     }).filter(function (mapping) {
@@ -253,6 +257,7 @@
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         config.PlexServerUrl = page.querySelector('#PlexServerUrl').value.trim();
+                        config.PlexAdminToken = page.querySelector('#PlexAdminToken').value.trim() || value(config, 'plexAdminToken') || '';
                         config.UserMappings = collectMappings();
                         config.EnableLiveSync = false;
                         return ApiClient.updatePluginConfiguration(pluginId, config);
@@ -385,11 +390,14 @@
                     Dashboard.showLoadingMsg();
                     return Promise.all([
                         ApiClient.getPluginConfiguration(pluginId),
-                        ApiClient.getJSON(ApiClient.getUrl('WatchStateSync/Admin/Users'))
+                        ApiClient.getJSON(ApiClient.getUrl('WatchStateSync/Admin/Users')),
+                        ApiClient.getJSON(ApiClient.getUrl('WatchStateSync/Admin/PlexUsers'))
                     ]).then(function (results) {
                         state.config = results[0];
                         state.users = results[1] || [];
+                        state.plexUsers = results[2] || [];
                         page.querySelector('#PlexServerUrl').value = value(state.config, 'plexServerUrl') || '';
+                        page.querySelector('#PlexAdminToken').placeholder = value(state.config, 'plexAdminToken') ? 'Stored administrator token — leave blank to keep it' : 'Required to discover Plex Home users';
                         renderMappings();
                         return loadAudits();
                     }).then(function () {

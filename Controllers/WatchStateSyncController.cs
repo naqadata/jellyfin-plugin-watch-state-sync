@@ -36,6 +36,22 @@ public sealed class WatchStateSyncController : ControllerBase
     }
 
     /// <summary>
+    /// Gets Plex Home users discovered with the configured administrator token.
+    /// </summary>
+    [HttpGet("Admin/PlexUsers")]
+    public async Task<ActionResult<IReadOnlyList<PlexUserOptionDto>>> GetPlexUsers(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _baselineMigrationService.GetPlexUsersAsync(cancellationToken).ConfigureAwait(false));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Creates a dry-run Plex-to-Jellyfin baseline preview.
     /// </summary>
     /// <param name="request">Preview request.</param>

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Jellyfin.Plugin.WatchStateSync.Migration;
+using Jellyfin.Plugin.WatchStateSync.Models;
 
 namespace Jellyfin.Plugin.WatchStateSync.Plex;
 
@@ -11,6 +12,7 @@ namespace Jellyfin.Plugin.WatchStateSync.Plex;
 public sealed class PlexClient : IDisposable
 {
     private const int PageSize = 500;
+    private static readonly Uri PlexTvBaseUri = new("https://plex.tv/");
     private readonly HttpClient _httpClient;
     private readonly bool _ownsClient;
 
@@ -51,10 +53,7 @@ public sealed class PlexClient : IDisposable
         CancellationToken cancellationToken)
     {
         Uri baseUri = ValidateBaseUri(serverUrl);
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            throw new InvalidOperationException("A Plex token is required for every enabled user mapping.");
-        }
+        EnsureToken(token, "Plex token");
 
         using JsonDocument sectionsDocument = await GetJsonAsync(
             baseUri,
@@ -153,6 +152,62 @@ public sealed class PlexClient : IDisposable
             .ToArray();
     }
 
+    /// <summary>
+    /// Lists Plex Home users available to the configured administrator token.
+    /// </summary>
+    public async Task<IReadOnlyList<PlexUserOptionDto>> GetHomeUsersAsync(
+        string adminToken,
+        CancellationToken cancellationToken)
+    {
+        EnsureToken(adminToken, "Plex administrator token");
+        using JsonDocument document = await GetJsonAsync(
+            PlexTvBaseUri,
+            "api/v2/home/users",
+            adminToken,
+            null,
+            cancellationToken).ConfigureAwait(false);
+        return GetArray(document.RootElement, "users")
+            .Select(user => new PlexUserOptionDto
+            {
+                Id = GetString(user, "uuid"),
+                Name = GetString(user, "title"),
+                IsProtected = GetBoolean(user, "protected")
+            })
+            .Where(user => !string.IsNullOrWhiteSpace(user.Id) && !string.IsNullOrWhiteSpace(user.Name))
+            .OrderBy(user => user.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Exchanges the administrator token for a token scoped to a Plex Home user.
+    /// </summary>
+    public async Task<string> GetHomeUserTokenAsync(
+        string adminToken,
+        string plexUserId,
+        CancellationToken cancellationToken)
+    {
+        EnsureToken(adminToken, "Plex administrator token");
+        if (string.IsNullOrWhiteSpace(plexUserId))
+        {
+            throw new InvalidOperationException("Choose a Plex Home user for every enabled mapping.");
+        }
+
+        using JsonDocument document = await SendJsonAsync(
+            HttpMethod.Post,
+            PlexTvBaseUri,
+            string.Create(CultureInfo.InvariantCulture, $"api/v2/home/users/{Uri.EscapeDataString(plexUserId)}/switch"),
+            adminToken,
+            null,
+            cancellationToken).ConfigureAwait(false);
+        string userToken = GetString(document.RootElement, "authToken");
+        if (string.IsNullOrWhiteSpace(userToken))
+        {
+            throw new InvalidOperationException("Plex did not return a user token. PIN-protected Plex profiles are not supported yet.");
+        }
+
+        return userToken;
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -169,7 +224,18 @@ public sealed class PlexClient : IDisposable
         IReadOnlyDictionary<string, string>? additionalHeaders,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(baseUri, relativeUrl));
+        return await SendJsonAsync(HttpMethod.Get, baseUri, relativeUrl, token, additionalHeaders, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<JsonDocument> SendJsonAsync(
+        HttpMethod method,
+        Uri baseUri,
+        string relativeUrl,
+        string token,
+        IReadOnlyDictionary<string, string>? additionalHeaders,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, new Uri(baseUri, relativeUrl));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Add("X-Plex-Token", token);
         request.Headers.Add("X-Plex-Product", "Jellyfin Watch State Sync");
@@ -196,6 +262,14 @@ public sealed class PlexClient : IDisposable
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void EnsureToken(string token, string description)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"A {description.ToLowerInvariant()} is required."));
+        }
     }
 
     private static Uri ValidateBaseUri(string serverUrl)
@@ -250,6 +324,13 @@ public sealed class PlexClient : IDisposable
             JsonValueKind.Number => value.GetRawText(),
             _ => string.Empty
         };
+    }
+
+    private static bool GetBoolean(JsonElement element, string property)
+    {
+        return element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty(property, out JsonElement value)
+            && value.ValueKind == JsonValueKind.True;
     }
 
     private static int GetInt32(JsonElement element, string property)

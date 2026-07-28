@@ -21,8 +21,20 @@ jellyfin_token="$(<"$SCRIPT_DIR/state/jellyfin-token")"
 jellyfin_headers=(--header "X-Emby-Token: $jellyfin_token")
 plex_headers=(
     --header 'Accept: application/json'
+    --header 'X-Plex-Product: Watch State Sync E2E'
+    --header 'X-Plex-Client-Identifier: jellyfin-watch-state-sync-e2e'
     --header "X-Plex-Token: $PLEX_TOKEN"
 )
+plex_home_users="$(
+    curl --fail --silent --show-error \
+        "${plex_headers[@]}" \
+        'https://plex.tv/api/v2/home/users'
+)"
+plex_user_id="$(
+    jq -er --arg username "${PLEX_USERNAME:-$JELLYFIN_USERNAME}" \
+        '.users[] | select((.title // .username) == $username) | .uuid' \
+        <<<"$plex_home_users"
+)"
 
 jellyfin_user_id="$(
     curl --fail --silent --show-error \
@@ -107,15 +119,16 @@ updated_configuration="$(
         --arg jellyfinUserId "$jellyfin_user_id" \
         --arg jellyfinUsername "$JELLYFIN_USERNAME" \
         --arg plexUsername "${PLEX_USERNAME:-$JELLYFIN_USERNAME}" \
+        --arg plexUserId "$plex_user_id" \
         --arg plexToken "$PLEX_TOKEN" \
         '.PlexServerUrl = $plexUrl
+         | .PlexAdminToken = $plexToken
          | .EnableLiveSync = false
          | .UserMappings = [{
              JellyfinUserId: $jellyfinUserId,
              JellyfinUsername: $jellyfinUsername,
-             PlexUserId: $plexUsername,
+             PlexUserId: $plexUserId,
              PlexUsername: $plexUsername,
-             PlexToken: $plexToken,
              Enabled: true
          }]' \
         <<<"$plugin_configuration"

@@ -14,6 +14,11 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     public string PlexServerUrl { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the Plex Home administrator token used to discover and switch managed users.
+    /// </summary>
+    public string PlexAdminToken { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the Plex polling interval in seconds.
     /// </summary>
     public int PollIntervalSeconds { get; set; } = 60;

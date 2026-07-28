@@ -39,6 +39,21 @@ public sealed class JellyfinUserOptionDto
 }
 
 /// <summary>
+/// A Plex Home user discoverable with the configured Plex administrator token.
+/// </summary>
+public sealed class PlexUserOptionDto
+{
+    /// <summary>Gets or sets the Plex Home user's stable UUID.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the Plex Home user's display name.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets whether Plex requires a PIN to switch to this profile.</summary>
+    public bool IsProtected { get; set; }
+}
+
+/// <summary>
 /// Summary counts for one or more baseline migration plans.
 /// </summary>
 public sealed class BaselineMigrationSummaryDto
