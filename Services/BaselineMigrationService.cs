@@ -23,7 +23,6 @@ namespace Jellyfin.Plugin.WatchStateSync.Services;
 /// </summary>
 public sealed class BaselineMigrationService
 {
-    private const int PreviewItemLimitPerUser = 1000;
     private static readonly TimeSpan PreviewLifetime = TimeSpan.FromMinutes(15);
     private static readonly JsonSerializerOptions AuditJsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -299,12 +298,6 @@ public sealed class BaselineMigrationService
             BaselineMigrationPlan plan = BaselineMigrationPlanner.Build(plexItems, jellyfinItems);
             aggregate.Add(plan.Summary);
 
-            BaselinePlannedItem[] reportItems = plan.Items
-                .OrderByDescending(i => i.Action != BaselineMigrationAction.None)
-                .ThenByDescending(i => i.MatchStatus == BaselineMatchStatus.Ambiguous)
-                .ThenBy(i => i.Title, StringComparer.OrdinalIgnoreCase)
-                .Take(PreviewItemLimitPerUser)
-                .ToArray();
             userDtos.Add(new BaselineUserPreviewDto
             {
                 JellyfinUserId = user.Id,
@@ -313,8 +306,8 @@ public sealed class BaselineMigrationService
                     ? user.Username
                     : mapping.PlexUsername,
                 Summary = plan.Summary,
-                Items = reportItems.Select(ToDto).ToArray(),
-                ItemsTruncated = plan.Items.Count > reportItems.Length
+                MoviesToUpdate = BuildUpdateGroups(plan.Items, BaselineMediaType.Movie),
+                ShowsToUpdate = BuildUpdateGroups(plan.Items, BaselineMediaType.Episode)
             });
             userPlans.Add(new UserExecutionPlan(
                 user.Id,
@@ -371,11 +364,35 @@ public sealed class BaselineMigrationService
                     i.Id,
                     i.Name,
                     i.Path,
+                    i is Movie ? BaselineMediaType.Movie : BaselineMediaType.Episode,
+                    i is Episode episode ? episode.SeriesName : null,
                     userData.Played,
                     userData.LastPlayedDate.HasValue
                         ? new DateTimeOffset(userData.LastPlayedDate.Value.ToUniversalTime())
                         : null);
             })
+            .ToArray();
+    }
+
+    private static IReadOnlyList<BaselineMigrationUpdateGroupDto> BuildUpdateGroups(
+        IReadOnlyList<BaselinePlannedItem> items,
+        BaselineMediaType mediaType)
+    {
+        return items
+            .Where(i => i.Action != BaselineMigrationAction.None && i.MediaType == mediaType)
+            .GroupBy(
+                i => mediaType == BaselineMediaType.Episode
+                    ? i.SeriesName ?? i.Title
+                    : i.Title,
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => new BaselineMigrationUpdateGroupDto
+            {
+                Title = group.Key,
+                ItemCount = group.Count(),
+                MarkWatched = group.Count(i => i.Action == BaselineMigrationAction.MarkWatched),
+                MarkUnwatched = group.Count(i => i.Action == BaselineMigrationAction.MarkUnwatched)
+            })
+            .OrderBy(i => i.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -604,22 +621,6 @@ public sealed class BaselineMigrationService
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
-    }
-
-    private static BaselineMigrationItemDto ToDto(BaselinePlannedItem item)
-    {
-        return new BaselineMigrationItemDto
-        {
-            PlexRatingKey = item.PlexRatingKey,
-            JellyfinItemId = item.JellyfinItemId,
-            Title = item.Title,
-            Path = item.Path,
-            MatchStatus = item.MatchStatus.ToString(),
-            Action = item.Action.ToString(),
-            PlexPlayed = item.PlexPlayed,
-            JellyfinPlayed = item.JellyfinPlayed,
-            Reason = item.Reason
-        };
     }
 
     private sealed record UserExecutionPlan(

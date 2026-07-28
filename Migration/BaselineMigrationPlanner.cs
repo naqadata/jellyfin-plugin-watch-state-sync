@@ -10,8 +10,21 @@ public sealed record PlexWatchStateItem(
     string RatingKey,
     string Title,
     IReadOnlyList<string> Paths,
+    BaselineMediaType MediaType,
     bool Played,
     DateTimeOffset? LastViewedAt);
+
+/// <summary>
+/// The media category used for a concise baseline report.
+/// </summary>
+public enum BaselineMediaType
+{
+    /// <summary>A movie.</summary>
+    Movie,
+
+    /// <summary>An episode of a television series.</summary>
+    Episode
+}
 
 /// <summary>
 /// Jellyfin movie or episode watch state used by the baseline planner.
@@ -20,6 +33,8 @@ public sealed record JellyfinWatchStateItem(
     Guid ItemId,
     string Title,
     string Path,
+    BaselineMediaType MediaType,
+    string? SeriesName,
     bool Played,
     DateTimeOffset? LastPlayedDate);
 
@@ -64,6 +79,8 @@ public sealed record BaselinePlannedItem(
     Guid? JellyfinItemId,
     string Title,
     string? Path,
+    BaselineMediaType? MediaType,
+    string? SeriesName,
     bool? PlexPlayed,
     bool? JellyfinPlayed,
     DateTimeOffset? PlexLastViewedAt,
@@ -143,6 +160,8 @@ public static class BaselineMigrationPlanner
                     null,
                     plexItem.Title,
                     plexItem.Paths.FirstOrDefault(),
+                    plexItem.MediaType,
+                    null,
                     plexItem.Played,
                     null,
                     plexItem.LastViewedAt,
@@ -160,6 +179,8 @@ public static class BaselineMigrationPlanner
                     null,
                     plexItem.Title,
                     plexItem.Paths.FirstOrDefault(),
+                    plexItem.MediaType,
+                    null,
                     plexItem.Played,
                     null,
                     plexItem.LastViewedAt,
@@ -190,6 +211,8 @@ public static class BaselineMigrationPlanner
                     jellyfinItem.ItemId,
                     plexItem.Title,
                     matchedPath,
+                    jellyfinItem.MediaType,
+                    jellyfinItem.SeriesName,
                     plexItem.Played,
                     jellyfinItem.Played,
                     plexItem.LastViewedAt,
@@ -211,6 +234,8 @@ public static class BaselineMigrationPlanner
                 jellyfinItem.ItemId,
                 plexItem.Title,
                 matchedPath,
+                jellyfinItem.MediaType,
+                jellyfinItem.SeriesName,
                 plexItem.Played,
                 jellyfinItem.Played,
                 plexItem.LastViewedAt,
@@ -234,6 +259,8 @@ public static class BaselineMigrationPlanner
                     i.ItemId,
                     i.Title,
                     CanonicalPathMatcher.Normalize(i.Path),
+                    i.MediaType,
+                    i.SeriesName,
                     null,
                     i.Played,
                     null,

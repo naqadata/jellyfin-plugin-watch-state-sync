@@ -113,54 +113,29 @@ public sealed class BaselineMigrationSummaryDto
 }
 
 /// <summary>
-/// One report row from a baseline migration preview.
+/// A compact group of planned baseline updates.
 /// </summary>
-public sealed class BaselineMigrationItemDto
+public sealed class BaselineMigrationUpdateGroupDto
 {
     /// <summary>
-    /// Gets or sets the Plex rating key, when a Plex item is present.
-    /// </summary>
-    public string? PlexRatingKey { get; set; }
-
-    /// <summary>
-    /// Gets or sets the Jellyfin item identifier, when a Jellyfin item is present.
-    /// </summary>
-    public Guid? JellyfinItemId { get; set; }
-
-    /// <summary>
-    /// Gets or sets the display title.
+    /// Gets or sets the movie or show title.
     /// </summary>
     public string Title { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the representative media path.
+    /// Gets or sets the number of movie items or episodes in this group.
     /// </summary>
-    public string? Path { get; set; }
+    public int ItemCount { get; set; }
 
     /// <summary>
-    /// Gets or sets the match classification.
+    /// Gets or sets the number of items that would be marked watched.
     /// </summary>
-    public string MatchStatus { get; set; } = string.Empty;
+    public int MarkWatched { get; set; }
 
     /// <summary>
-    /// Gets or sets the proposed action.
+    /// Gets or sets the number of items that would be marked unwatched.
     /// </summary>
-    public string Action { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the Plex watched state, when present.
-    /// </summary>
-    public bool? PlexPlayed { get; set; }
-
-    /// <summary>
-    /// Gets or sets the Jellyfin watched state, when present.
-    /// </summary>
-    public bool? JellyfinPlayed { get; set; }
-
-    /// <summary>
-    /// Gets or sets the explanation for this result.
-    /// </summary>
-    public string Reason { get; set; } = string.Empty;
+    public int MarkUnwatched { get; set; }
 }
 
 /// <summary>
@@ -189,14 +164,14 @@ public sealed class BaselineUserPreviewDto
     public BaselineMigrationSummaryDto Summary { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets report rows. The list may be capped for dashboard display.
+    /// Gets or sets movies that have planned updates.
     /// </summary>
-    public IReadOnlyList<BaselineMigrationItemDto> Items { get; set; } = [];
+    public IReadOnlyList<BaselineMigrationUpdateGroupDto> MoviesToUpdate { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets a value indicating whether report rows were truncated.
+    /// Gets or sets shows that have one or more episode updates.
     /// </summary>
-    public bool ItemsTruncated { get; set; }
+    public IReadOnlyList<BaselineMigrationUpdateGroupDto> ShowsToUpdate { get; set; } = [];
 }
 
 /// <summary>

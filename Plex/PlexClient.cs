@@ -130,6 +130,7 @@ public sealed class PlexClient : IDisposable
                         ratingKey,
                         GetString(item, "title"),
                         paths,
+                        itemType == "1" ? BaselineMediaType.Movie : BaselineMediaType.Episode,
                         viewCount > 0,
                         lastViewedAt > 0
                             ? DateTimeOffset.FromUnixTimeSeconds(lastViewedAt)

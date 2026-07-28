@@ -28,13 +28,10 @@
         }
         .watchSyncRemoveMapping:hover, .watchSyncRemoveMapping:focus { border-color: #ff8a80 !important; }
         .watchSyncButton:disabled { cursor: not-allowed; opacity: .45; }
-        .watchSyncTableWrap { overflow-x: auto; margin-top: 1em; }
-        .watchSyncTable { width: 100%; border-collapse: collapse; font-size: .9em; }
-        .watchSyncTable th, .watchSyncTable td { padding: .55em; border-bottom: 1px solid rgba(128, 128, 128, .25); text-align: left; vertical-align: top; }
-        .watchSyncPath { max-width: 30em; overflow-wrap: anywhere; opacity: .75; }
-        .watchSyncWatched { color: #9be9a8; font-weight: 600; }
-        .watchSyncUnwatched { color: #f0ad4e; font-weight: 600; }
-        .watchSyncUnknown { opacity: .75; }
+        .watchSyncUpdateGroup { margin: 1em 0; }
+        .watchSyncUpdateGroup h4 { margin: 0 0 .35em; }
+        .watchSyncUpdateList { margin: 0; padding-left: 1.25em; }
+        .watchSyncUpdateCount { opacity: .75; }
         .watchSyncError { margin-top: 1em; color: #ff8a80; }
         .watchSyncSuccess { margin-top: 1em; color: #9be9a8; }
         .watchSyncWarning { padding: .8em; border-left: .25em solid #f0ad4e; background: rgba(240, 173, 78, .10); }
@@ -260,43 +257,44 @@
                     return '<div class="watchSyncSummaryItem"><span class="watchSyncSummaryValue">' + escapeHtml(number || 0) + '</span>' + escapeHtml(label) + '</div>';
                 }
 
-                function watchStateLabel(played) {
-                    if (played === true) {
-                        return '<span class="watchSyncWatched">Watched</span>';
+                function updateGroupText(group, isShow) {
+                    var watched = value(group, 'markWatched') || 0;
+                    var unwatched = value(group, 'markUnwatched') || 0;
+                    var count = value(group, 'itemCount') || 0;
+                    var changes = [];
+                    if (watched) {
+                        changes.push(watched + ' mark watched');
                     }
-                    if (played === false) {
-                        return '<span class="watchSyncUnwatched">Unwatched</span>';
+                    if (unwatched) {
+                        changes.push(unwatched + ' mark unwatched');
                     }
-                    return '<span class="watchSyncUnknown">Unknown</span>';
+                    var suffix = isShow ? ' · ' + count + ' episode' + (count === 1 ? '' : 's') : '';
+                    return escapeHtml(value(group, 'title')) + '<span class="watchSyncUpdateCount">' + suffix + ' · ' + escapeHtml(changes.join(', ')) + '</span>';
+                }
+
+                function renderUpdateGroup(title, groups, isShow) {
+                    if (!groups.length) {
+                        return '<div class="watchSyncUpdateGroup"><h4>' + escapeHtml(title) + '</h4><div class="watchSyncEmpty">None.</div></div>';
+                    }
+                    return '<div class="watchSyncUpdateGroup"><h4>' + escapeHtml(title) + '</h4><ul class="watchSyncUpdateList">' + groups.map(function (group) {
+                        return '<li>' + updateGroupText(group, isShow) + '</li>';
+                    }).join('') + '</ul></div>';
                 }
 
                 function renderPreview(preview) {
                     var summary = value(preview, 'summary') || {};
                     var users = value(preview, 'users') || [];
+                    var totalUpdates = (value(summary, 'markWatched') || 0) + (value(summary, 'markUnwatched') || 0);
                     var html = '<div class="watchSyncSummary">' +
-                        summaryCard('Matched', value(summary, 'matched')) +
-                        summaryCard('Mark watched', value(summary, 'markWatched')) +
-                        summaryCard('Mark unwatched', value(summary, 'markUnwatched')) +
-                        summaryCard('No change', value(summary, 'noChange')) +
-                        summaryCard('Ambiguous', value(summary, 'ambiguous')) +
-                        summaryCard('Plex unmatched', value(summary, 'unmatchedPlex')) +
-                        summaryCard('Jellyfin unmatched', value(summary, 'unmatchedJellyfin')) +
+                        summaryCard('Total scanned', value(summary, 'plexItems')) +
+                        summaryCard('Total updates to apply', totalUpdates) +
                         '</div>';
                     users.forEach(function (user) {
-                        var items = value(user, 'items') || [];
+                        var movies = value(user, 'moviesToUpdate') || [];
+                        var shows = value(user, 'showsToUpdate') || [];
                         html += '<h3>' + escapeHtml(value(user, 'jellyfinUsername')) + ' ← Plex ' + escapeHtml(value(user, 'plexUsername')) + '</h3>';
-                        if (!items.length) {
-                            html += '<div class="watchSyncEmpty">No catalog rows.</div>';
-                            return;
-                        }
-                        html += '<div class="watchSyncTableWrap"><table class="watchSyncTable"><thead><tr><th>Title</th><th>Plex state</th><th>Jellyfin state</th><th>Match</th><th>Action</th><th>Path</th></tr></thead><tbody>';
-                        items.forEach(function (item) {
-                            html += '<tr><td>' + escapeHtml(value(item, 'title')) + '</td><td>' + watchStateLabel(value(item, 'plexPlayed')) + '</td><td>' + watchStateLabel(value(item, 'jellyfinPlayed')) + '</td><td>' + escapeHtml(value(item, 'matchStatus')) + '</td><td>' + escapeHtml(value(item, 'action')) + '<br><small>' + escapeHtml(value(item, 'reason')) + '</small></td><td class="watchSyncPath">' + escapeHtml(value(item, 'path')) + '</td></tr>';
-                        });
-                        html += '</tbody></table></div>';
-                        if (value(user, 'itemsTruncated')) {
-                            html += '<p><em>The dashboard detail list is capped; summary counts cover the full catalog.</em></p>';
-                        }
+                        html += renderUpdateGroup('Movies to update', movies, false);
+                        html += renderUpdateGroup('Shows to update', shows, true);
                     });
                     page.querySelector('#WatchSyncPreview').innerHTML = html;
                 }

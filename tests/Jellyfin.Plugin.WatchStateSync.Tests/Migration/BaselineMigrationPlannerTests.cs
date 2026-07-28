@@ -93,11 +93,11 @@ public sealed class BaselineMigrationPlannerTests
 
     private static JellyfinWatchStateItem Item(string title, string path, bool played)
     {
-        return new JellyfinWatchStateItem(Guid.NewGuid(), title, path, played, null);
+        return new JellyfinWatchStateItem(Guid.NewGuid(), title, path, BaselineMediaType.Movie, null, played, null);
     }
 
     private static PlexWatchStateItem Plex(string key, string path, bool played)
     {
-        return new PlexWatchStateItem(key, key, [path], played, null);
+        return new PlexWatchStateItem(key, key, [path], BaselineMediaType.Movie, played, null);
     }
 }
