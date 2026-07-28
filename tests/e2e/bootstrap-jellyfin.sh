@@ -6,6 +6,7 @@ JELLYFIN_URL="${JELLYFIN_URL:-http://127.0.0.1:${JELLYFIN_PORT:-18096}}"
 JELLYFIN_USERNAME="${JELLYFIN_USERNAME:-fixture-admin}"
 JELLYFIN_PASSWORD="${JELLYFIN_PASSWORD:-fixture-password}"
 JELLYFIN_ENABLE_REMOTE_ACCESS="${JELLYFIN_ENABLE_REMOTE_ACCESS:-false}"
+JELLYFIN_SERVER_NAME="${JELLYFIN_SERVER_NAME:-Watch State Sync Fixture}"
 AUTHORIZATION='MediaBrowser Client="WatchStateSyncE2E", Device="DockerFixture", DeviceId="watch-state-sync-e2e", Version="0.1.0"'
 TOKEN_FILE="$SCRIPT_DIR/state/jellyfin-token"
 CURL_RETRY=(
@@ -32,7 +33,9 @@ if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
         "${CURL_RETRY[@]}" \
         --request POST \
         --header 'Content-Type: application/json' \
-        --data '{"UICulture":"en-US","MetadataCountryCode":"US","PreferredMetadataLanguage":"en"}' \
+        --data "$(jq -n \
+            --arg serverName "$JELLYFIN_SERVER_NAME" \
+            '{UICulture:"en-US",MetadataCountryCode:"US",PreferredMetadataLanguage:"en",ServerName:$serverName}')" \
         "$JELLYFIN_URL/Startup/Configuration" >/dev/null
 
     curl --fail --silent --show-error \
@@ -69,6 +72,22 @@ authentication="$(
 token="$(jq -er '.AccessToken' <<<"$authentication")"
 printf '%s' "$token" >"$TOKEN_FILE"
 chmod 600 "$TOKEN_FILE"
+
+system_configuration="$(
+    curl --fail --silent --show-error \
+        --header "X-Emby-Token: $token" \
+        "$JELLYFIN_URL/System/Configuration"
+)"
+if [ "$(jq -r '.ServerName' <<<"$system_configuration")" != "$JELLYFIN_SERVER_NAME" ]; then
+    jq --arg serverName "$JELLYFIN_SERVER_NAME" '.ServerName = $serverName' \
+        <<<"$system_configuration" \
+        | curl --fail --silent --show-error \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --header "X-Emby-Token: $token" \
+            --data-binary @- \
+            "$JELLYFIN_URL/System/Configuration" >/dev/null
+fi
 
 add_library() {
     local name="$1"

@@ -20,6 +20,7 @@ set -a
 source "$ENV_FILE"
 set +a
 
+export JELLYFIN_SERVER_NAME="${JELLYFIN_SERVER_NAME:-Cortana Watch Sync Dev}"
 export WATCH_STATE_SYNC_SKIP_BUILD=true
 export WATCH_STATE_SYNC_PLUGIN_DLL="$PLUGIN_DLL"
 
