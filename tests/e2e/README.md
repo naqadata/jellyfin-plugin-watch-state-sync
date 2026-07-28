@@ -17,7 +17,7 @@ Pinned server versions:
 ./tests/e2e/down.sh
 ```
 
-The first run downloads both server images and generates a two-second fixture
+The first run downloads both server images and generates a 30-second fixture
 movie and episode. Persistent state and media are ignored by Git.
 
 Jellyfin is available at <http://127.0.0.1:18096>. Plex is available at
