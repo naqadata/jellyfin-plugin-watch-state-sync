@@ -6,6 +6,15 @@
     "overview": "Provides a Plex-authoritative baseline migration and optional completed-view synchronization.",
     "owner": "naqadata",
     "category": "General",
-    "versions": []
+    "versions": [
+      {
+        "version": "0.3.0.2",
+        "changelog": "Manual baseline migration and opt-in timestamp-only Plex and Jellyfin completed-view sync.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/naqadata/jellyfin-plugin-watch-state-sync/main/dist/Jellyfin.Plugin.WatchStateSync_0.3.0.2.zip",
+        "checksum": "9f658c4e4856a818a6fa40319c85f98c",
+        "timestamp": "2026-07-28T20:45:56Z"
+      }
+    ]
   }
 ]

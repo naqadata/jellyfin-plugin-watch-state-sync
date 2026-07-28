@@ -40,6 +40,20 @@ dotnet build Jellyfin.Plugin.WatchStateSync.csproj
 ./scripts/test.sh
 ```
 
+## Jellyfin catalog repository
+
+Use this manifest URL in Dashboard → Plugins → Repositories:
+
+```text
+https://raw.githubusercontent.com/naqadata/jellyfin-plugin-watch-state-sync/main/manifest.json
+```
+
+Build an immutable catalog package after bumping the plugin version:
+
+```bash
+./scripts/package.sh "Describe the release"
+```
+
 Run the Docker fixture smoke test:
 
 ```bash
