@@ -237,10 +237,17 @@
                     var existing = value(state.config, 'userMappings') || [];
                     return Array.prototype.map.call(page.querySelectorAll('.watchSyncMapping'), function (wrapper) {
                         var userSelect = wrapper.querySelector('.watchSyncJellyfinUser');
-                        var selectedOption = userSelect.options[userSelect.selectedIndex];
                         var originalIndex = parseInt(wrapper.dataset.originalIndex || '-1', 10);
                         var original = originalIndex >= 0 ? existing[originalIndex] : {};
                         var plexSelect = wrapper.querySelector('.watchSyncPlexUser');
+                        // Jellyfin's custom select enhancement can briefly replace an element while a
+                        // configuration page is being refreshed. Preserve an existing mapping rather
+                        // than throwing or accidentally dropping it during that transition.
+                        if (!userSelect || !plexSelect) {
+                            return originalIndex >= 0 ? original : null;
+                        }
+
+                        var selectedOption = userSelect.options[userSelect.selectedIndex];
                         var plexOption = plexSelect.options[plexSelect.selectedIndex];
                         return {
                             JellyfinUserId: userSelect.value,
@@ -250,7 +257,7 @@
                             Enabled: wrapper.querySelector('.watchSyncMappingEnabled').checked
                         };
                     }).filter(function (mapping) {
-                        return !!mapping.JellyfinUserId;
+                        return !!(mapping && mapping.JellyfinUserId);
                     });
                 }
 
