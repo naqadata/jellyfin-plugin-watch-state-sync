@@ -1,0 +1,16 @@
+{
+  "category": "General",
+  "changelog": "Fix configuration saving while Jellyfin refreshes mapping selectors.",
+  "description": "Migrates Plex watch state to Jellyfin and optionally keeps completed views synchronized.",
+  "guid": "0df4d4de-503e-4c18-bb5d-b274de7046d3",
+  "name": "Watch State Sync",
+  "overview": "Provides a manual Plex-authoritative baseline migration and opt-in timestamp-only completed-view synchronization.",
+  "owner": "naqadata",
+  "targetAbi": "10.11.0.0",
+  "timestamp": "2026-07-28T17:30:00.0000000Z",
+  "version": "0.3.0.1",
+  "status": "Active",
+  "autoUpdate": false,
+  "imagePath": "",
+  "assemblies": []
+}
