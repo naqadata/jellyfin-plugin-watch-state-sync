@@ -136,12 +136,12 @@ preview="$(
         "$JELLYFIN_URL/WatchStateSync/Admin/Baseline/Preview"
 )"
 jq -e '
-    .summary.matched == 2
-    and .summary.markWatched == 1
-    and .summary.markUnwatched == 1
-    and .summary.ambiguous == 0
+    .Summary.Matched == 2
+    and .Summary.MarkWatched == 1
+    and .Summary.MarkUnwatched == 1
+    and .Summary.Ambiguous == 0
 ' <<<"$preview" >/dev/null
-preview_id="$(jq -er '.previewId' <<<"$preview")"
+preview_id="$(jq -er '.PreviewId' <<<"$preview")"
 
 apply_result="$(
     curl --fail --silent --show-error \
@@ -151,7 +151,7 @@ apply_result="$(
         --data "$(jq -n --arg previewId "$preview_id" '{PreviewId:$previewId}')" \
         "$JELLYFIN_URL/WatchStateSync/Admin/Baseline/Apply"
 )"
-jq -e '.attempted == 2 and .applied == 2 and .failed == 0 and .cancelled == false' \
+jq -e '.Attempted == 2 and .Applied == 2 and .Failed == 0 and .Cancelled == false' \
     <<<"$apply_result" >/dev/null
 
 movie_after="$(
@@ -175,7 +175,7 @@ idempotency_preview="$(
         --data '{}' \
         "$JELLYFIN_URL/WatchStateSync/Admin/Baseline/Preview"
 )"
-jq -e '.summary.markWatched == 0 and .summary.markUnwatched == 0 and .summary.noChange == 2' \
+jq -e '.Summary.MarkWatched == 0 and .Summary.MarkUnwatched == 0 and .Summary.NoChange == 2' \
     <<<"$idempotency_preview" >/dev/null
 
 audits="$(
@@ -183,7 +183,7 @@ audits="$(
         "${jellyfin_headers[@]}" \
         "$JELLYFIN_URL/WatchStateSync/Admin/Baseline/Audits?limit=1"
 )"
-jq -e 'length == 1 and .[0].applied == 2 and .[0].failed == 0' <<<"$audits" >/dev/null
+jq -e 'length == 1 and .[0].Applied == 2 and .[0].Failed == 0' <<<"$audits" >/dev/null
 
 echo "Manual baseline migration applied both watched-state directions"
 echo "A second dry run proposed no changes"
