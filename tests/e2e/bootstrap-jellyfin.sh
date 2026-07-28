@@ -8,6 +8,13 @@ JELLYFIN_PASSWORD="${JELLYFIN_PASSWORD:-fixture-password}"
 JELLYFIN_ENABLE_REMOTE_ACCESS="${JELLYFIN_ENABLE_REMOTE_ACCESS:-false}"
 AUTHORIZATION='MediaBrowser Client="WatchStateSyncE2E", Device="DockerFixture", DeviceId="watch-state-sync-e2e", Version="0.1.0"'
 TOKEN_FILE="$SCRIPT_DIR/state/jellyfin-token"
+CURL_RETRY=(
+    --retry 30
+    --retry-delay 2
+    --retry-all-errors
+    --connect-timeout 5
+    --max-time 10
+)
 
 public_info="$(curl --fail --silent --show-error "$JELLYFIN_URL/System/Info/Public")"
 if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
@@ -22,18 +29,21 @@ if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
     done
 
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --request POST \
         --header 'Content-Type: application/json' \
         --data '{"UICulture":"en-US","MetadataCountryCode":"US","PreferredMetadataLanguage":"en"}' \
         "$JELLYFIN_URL/Startup/Configuration" >/dev/null
 
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --request POST \
         --header 'Content-Type: application/json' \
         --data "$(jq -n --arg name "$JELLYFIN_USERNAME" --arg password "$JELLYFIN_PASSWORD" '{Name:$name,Password:$password}')" \
         "$JELLYFIN_URL/Startup/User" >/dev/null
 
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --request POST \
         --header 'Content-Type: application/json' \
         --data "$(jq -n \
@@ -42,12 +52,14 @@ if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
         "$JELLYFIN_URL/Startup/RemoteAccess" >/dev/null
 
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --request POST \
         "$JELLYFIN_URL/Startup/Complete" >/dev/null
 fi
 
 authentication="$(
     curl --fail --silent --show-error \
+        "${CURL_RETRY[@]}" \
         --request POST \
         --header 'Content-Type: application/json' \
         --header "Authorization: $AUTHORIZATION" \
