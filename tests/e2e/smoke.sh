@@ -4,8 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JELLYFIN_URL="${JELLYFIN_URL:-http://127.0.0.1:${JELLYFIN_PORT:-18096}}"
 PLEX_URL="${PLEX_URL:-http://127.0.0.1:${PLEX_PORT:-32410}}"
+PLEX_TOKEN="${PLEX_TOKEN:-}"
 JELLYFIN_MOVIE_PATH="/media/Movies/Fixture Movie (2024)/Fixture Movie (2024).mp4"
 JELLYFIN_EPISODE_PATH="/media/Shows/Fixture Show (2024)/Season 01/Fixture Show (2024) - S01E01 - Pilot.mp4"
+PLEX_HEADERS=(--header 'Accept: application/json')
+if [ -n "$PLEX_TOKEN" ]; then
+    PLEX_HEADERS+=(--header "X-Plex-Token: $PLEX_TOKEN")
+fi
 
 "$SCRIPT_DIR/wait-for-servers.sh"
 
@@ -15,14 +20,14 @@ jellyfin_version="$(
 )"
 plex_identity="$(
     curl --fail --silent --show-error \
-        --header 'Accept: application/json' \
+        "${PLEX_HEADERS[@]}" \
         "$PLEX_URL/identity"
 )"
 plex_version="$(jq -er '.MediaContainer.version' <<<"$plex_identity")"
 jellyfin_token="$(<"$SCRIPT_DIR/state/jellyfin-token")"
 plex_sections="$(
     curl --fail --silent --show-error \
-        --header 'Accept: application/json' \
+        "${PLEX_HEADERS[@]}" \
         "$PLEX_URL/library/sections"
 )"
 plex_movie_section="$(
@@ -53,10 +58,10 @@ while true; do
     plex_paths="$(
         {
             curl --fail --silent --show-error \
-                --header 'Accept: application/json' \
+                "${PLEX_HEADERS[@]}" \
                 "$PLEX_URL/library/sections/$plex_movie_section/all"
             curl --fail --silent --show-error \
-                --header 'Accept: application/json' \
+                "${PLEX_HEADERS[@]}" \
                 "$PLEX_URL/library/sections/$plex_show_section/all?type=4"
         } | jq -r '.MediaContainer.Metadata[]?.Media[]?.Part[]?.file'
     )"
