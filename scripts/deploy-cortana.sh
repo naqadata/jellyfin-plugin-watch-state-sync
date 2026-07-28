@@ -44,7 +44,11 @@ if ! ssh "${SSH_ARGS[@]}" \
 fi
 
 ssh "${SSH_ARGS[@]}" \
-    "wsl.exe -d $CORTANA_WSL_DISTRO -u root -- bash -lc 'apt-get update -qq && apt-get install -y -qq jq >/dev/null && chown -R paulwitt:paulwitt $REMOTE_DIR'"
+    "wsl.exe -d $CORTANA_WSL_DISTRO -u root -- apt-get update -qq"
+ssh "${SSH_ARGS[@]}" \
+    "wsl.exe -d $CORTANA_WSL_DISTRO -u root -- apt-get install -y -qq jq"
+ssh "${SSH_ARGS[@]}" \
+    "wsl.exe -d $CORTANA_WSL_DISTRO -u root -- chown -R paulwitt:paulwitt $REMOTE_DIR"
 
 ssh "${SSH_ARGS[@]}" \
     "wsl.exe -d $CORTANA_WSL_DISTRO -u paulwitt -- $REMOTE_DIR/deploy/cortana/up.sh"
