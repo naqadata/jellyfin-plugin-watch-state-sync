@@ -28,6 +28,7 @@
         }
         .watchSyncRemoveMapping:hover, .watchSyncRemoveMapping:focus { border-color: #ff8a80 !important; }
         .watchSyncButton:disabled { cursor: not-allowed; opacity: .45; }
+        .watchSyncApplyHidden { display: none !important; }
         .watchSyncTableWrap { overflow-x: auto; margin-top: 1em; }
         .watchSyncTable { width: 100%; border-collapse: collapse; font-size: .9em; }
         .watchSyncTable th, .watchSyncTable td { padding: .55em; border-bottom: 1px solid rgba(128, 128, 128, .25); text-align: left; vertical-align: top; }
@@ -75,7 +76,7 @@
                     <p>A dry run is mandatory. Its preview expires after 15 minutes and is rejected if configuration, media, or watch state changes before apply.</p>
                     <div class="watchSyncActions">
                         <button id="PreviewBaselineMigration" is="emby-button" type="button" class="watchSyncButton raised emby-button" style="background:#3b3b3b!important;border:1px solid #00a4dc!important;box-shadow:inset 0 -3px #00a4dc!important;color:#f5f5f5!important"><span>Run dry run</span></button>
-                        <button id="ApplyBaselineMigration" is="emby-button" type="button" class="watchSyncButton raised button-submit emby-button" style="background:#3b3b3b!important;border:1px solid #00a4dc!important;box-shadow:inset 0 -3px #00a4dc!important;color:#f5f5f5!important" disabled hidden><span>Apply this preview</span></button>
+                        <button id="ApplyBaselineMigration" is="emby-button" type="button" class="watchSyncButton watchSyncApplyHidden raised button-submit emby-button" style="background:#3b3b3b!important;border:1px solid #00a4dc!important;box-shadow:inset 0 -3px #00a4dc!important;color:#f5f5f5!important" disabled><span>Apply this preview</span></button>
                     </div>
                     <div id="WatchSyncOperationMessage"></div>
                     <div id="WatchSyncPreview"></div>
@@ -144,7 +145,7 @@
 
                 function setApplyPreviewAvailable(available) {
                     var button = page.querySelector('#ApplyBaselineMigration');
-                    button.hidden = !available;
+                    button.classList.toggle('watchSyncApplyHidden', !available);
                     button.disabled = !available;
                 }
 
