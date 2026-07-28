@@ -49,7 +49,7 @@
 
                 <section class="watchSyncSection">
                     <h2>Connection and users</h2>
-                    <p>Use one Plex Home administrator token. The plugin discovers Plex Home users and switches to the selected profile when reading watch state.</p>
+                    <p>Use one Plex administrator token. The plugin discovers Plex Home profiles and separately shared Plex accounts, then reads watch state with the matching user access.</p>
                     <form id="WatchStateSyncConfigForm">
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="PlexServerUrl">Plex server URL</label>
@@ -58,7 +58,7 @@
                         </div>
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="PlexAdminToken">Plex administrator token</label>
-                            <input id="PlexAdminToken" name="PlexAdminToken" type="password" is="emby-input" placeholder="Required to discover Plex Home users" />
+                            <input id="PlexAdminToken" name="PlexAdminToken" type="password" is="emby-input" placeholder="Required to discover Plex users" />
                             <div class="fieldDescription">Stored in Jellyfin plugin configuration. Save it once; individual Plex users do not need to supply tokens.</div>
                         </div>
                         <div id="WatchSyncMappings"></div>
@@ -206,8 +206,8 @@
                         '<div class="watchSyncMappingHeader"><strong>User mapping</strong><button is="emby-button" type="button" class="watchSyncRemoveMapping emby-button" style="background:#252525!important;border:1px solid #4a4a4a!important;box-shadow:none!important;color:#f5f5f5!important"><span>Remove</span></button></div>' +
                         '<div class="selectContainer"><label class="selectLabel">Jellyfin user</label><select class="watchSyncJellyfinUser" is="emby-select">' +
                         '<option value="">Choose a user</option>' + userOptions(selectedId) + '</select></div>' +
-                        '<div class="selectContainer"><label class="selectLabel">Plex Home user</label><select class="watchSyncPlexUser" is="emby-select"><option value="">Choose a Plex user</option>' + plexUserOptions(plexUserId) + '</select>' +
-                        '<div class="fieldDescription">Discovered from the Plex administrator token. PIN-protected profiles are not yet supported.</div></div>' +
+                        '<div class="selectContainer"><label class="selectLabel">Plex user</label><select class="watchSyncPlexUser" is="emby-select"><option value="">Choose a Plex user</option>' + plexUserOptions(plexUserId) + '</select>' +
+                        '<div class="fieldDescription">Includes Plex Home profiles and accounts shared to this Plex server. PIN-protected Home profiles are not yet supported.</div></div>' +
                         '<div class="checkboxContainer checkboxContainer-withDescription"><label class="emby-checkbox-label"><input class="watchSyncMappingEnabled" type="checkbox" is="emby-checkbox"' + (enabled ? ' checked' : '') + ' /><span>Enabled</span></label></div>';
                     container.appendChild(wrapper);
 
@@ -397,7 +397,7 @@
                         state.users = results[1] || [];
                         state.plexUsers = results[2] || [];
                         page.querySelector('#PlexServerUrl').value = value(state.config, 'plexServerUrl') || '';
-                        page.querySelector('#PlexAdminToken').placeholder = value(state.config, 'plexAdminToken') ? 'Stored administrator token — leave blank to keep it' : 'Required to discover Plex Home users';
+                        page.querySelector('#PlexAdminToken').placeholder = value(state.config, 'plexAdminToken') ? 'Stored administrator token — leave blank to keep it' : 'Required to discover Plex users';
                         renderMappings();
                         return loadAudits();
                     }).then(function () {

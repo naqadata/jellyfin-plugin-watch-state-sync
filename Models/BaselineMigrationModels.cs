@@ -39,11 +39,11 @@ public sealed class JellyfinUserOptionDto
 }
 
 /// <summary>
-/// A Plex Home user discoverable with the configured Plex administrator token.
+/// A Plex user discoverable with the configured Plex administrator token.
 /// </summary>
 public sealed class PlexUserOptionDto
 {
-    /// <summary>Gets or sets the Plex Home user's stable UUID.</summary>
+    /// <summary>Gets or sets the stable discovery identifier.</summary>
     public string Id { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the Plex Home user's display name.</summary>

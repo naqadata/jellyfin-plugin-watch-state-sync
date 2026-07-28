@@ -79,7 +79,7 @@ public sealed class BaselineMigrationService
             ?? throw new InvalidOperationException("Watch State Sync is not initialized.");
         return string.IsNullOrWhiteSpace(configuration.PlexAdminToken)
             ? Task.FromResult<IReadOnlyList<PlexUserOptionDto>>([])
-            : _plexClient.GetHomeUsersAsync(configuration.PlexAdminToken, cancellationToken);
+            : _plexClient.GetAvailableUsersAsync(configuration.PlexServerUrl, configuration.PlexAdminToken, cancellationToken);
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public sealed class BaselineMigrationService
         {
             User user = ResolveUser(mapping);
             string plexUserToken = await _plexClient
-                .GetHomeUserTokenAsync(configuration.PlexAdminToken, mapping.PlexUserId, cancellationToken)
+                .GetUserTokenAsync(configuration.PlexServerUrl, configuration.PlexAdminToken, mapping.PlexUserId, cancellationToken)
                 .ConfigureAwait(false);
             IReadOnlyList<PlexWatchStateItem> plexItems = await _plexClient
                 .GetWatchStateItemsAsync(

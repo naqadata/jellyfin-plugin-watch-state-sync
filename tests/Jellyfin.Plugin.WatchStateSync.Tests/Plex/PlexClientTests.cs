@@ -62,16 +62,22 @@ public sealed class PlexClientTests
               {"uuid":"owner","title":"Owner","protected":false},
               {"uuid":"parent","title":"Parent","protected":true}
             ]}
-            """);
+            """,
+            """<MediaContainer machineIdentifier="machine" />""",
+            """<MediaContainer />""");
         using var client = new PlexClient(new HttpClient(handler));
 
-        IReadOnlyList<PlexUserOptionDto> users = await client.GetHomeUsersAsync("admin-token", CancellationToken.None);
+        IReadOnlyList<PlexUserOptionDto> users = await client.GetAvailableUsersAsync(
+            "http://plex:32400",
+            "admin-token",
+            CancellationToken.None);
 
         Assert.Collection(
             users,
-            user => { Assert.Equal("owner", user.Id); Assert.False(user.IsProtected); },
-            user => { Assert.Equal("parent", user.Id); Assert.True(user.IsProtected); });
-        Assert.Equal("/api/v2/home/users", Assert.Single(handler.Requests).Uri?.AbsolutePath);
+            user => { Assert.Equal("home:owner", user.Id); Assert.False(user.IsProtected); },
+            user => { Assert.Equal("home:parent", user.Id); Assert.True(user.IsProtected); });
+        Assert.Equal("/api/v2/home/users", handler.Requests[0].Uri?.AbsolutePath);
+        Assert.Equal("home:owner", users[0].Id);
     }
 
     [Fact]
@@ -80,13 +86,28 @@ public sealed class PlexClientTests
         var handler = new QueueHandler("""{"authToken":"parent-token"}""");
         using var client = new PlexClient(new HttpClient(handler));
 
-        string token = await client.GetHomeUserTokenAsync("admin-token", "parent", CancellationToken.None);
+        string token = await client.GetUserTokenAsync("http://plex:32400", "admin-token", "home:parent", CancellationToken.None);
 
         Assert.Equal("parent-token", token);
         (Uri? uri, string? requestToken, HttpMethod method) = Assert.Single(handler.Requests);
         Assert.Equal("admin-token", requestToken);
         Assert.Equal(HttpMethod.Post, method);
         Assert.Equal("/api/v2/home/users/parent/switch", uri?.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task GetUserTokenAsync_UsesServerScopedTokenForSharedAccount()
+    {
+        var handler = new QueueHandler(
+            """<MediaContainer machineIdentifier="machine" />""",
+            """<MediaContainer><SharedServer userID="42" username="dlwi4" accessToken="shared-token" /></MediaContainer>""");
+        using var client = new PlexClient(new HttpClient(handler));
+
+        string token = await client.GetUserTokenAsync("http://plex:32400", "admin-token", "shared:42", CancellationToken.None);
+
+        Assert.Equal("shared-token", token);
+        Assert.Equal("/identity", handler.Requests[0].Uri?.AbsolutePath);
+        Assert.Equal("/api/servers/machine/shared_servers", handler.Requests[1].Uri?.AbsolutePath);
     }
 
     private sealed class QueueHandler : HttpMessageHandler

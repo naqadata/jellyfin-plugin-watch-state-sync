@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Xml.Linq;
 using Jellyfin.Plugin.WatchStateSync.Migration;
 using Jellyfin.Plugin.WatchStateSync.Models;
 
@@ -153,35 +154,43 @@ public sealed class PlexClient : IDisposable
     }
 
     /// <summary>
-    /// Lists Plex Home users available to the configured administrator token.
+    /// Lists Plex Home users and separately shared Plex accounts available to the administrator token.
     /// </summary>
-    public async Task<IReadOnlyList<PlexUserOptionDto>> GetHomeUsersAsync(
+    public async Task<IReadOnlyList<PlexUserOptionDto>> GetAvailableUsersAsync(
+        string serverUrl,
         string adminToken,
         CancellationToken cancellationToken)
     {
         EnsureToken(adminToken, "Plex administrator token");
+        Uri serverUri = ValidateBaseUri(serverUrl);
         using JsonDocument document = await GetJsonAsync(
             PlexTvBaseUri,
             "api/v2/home/users",
             adminToken,
             null,
             cancellationToken).ConfigureAwait(false);
-        return GetArray(document.RootElement, "users")
+        PlexUserOptionDto[] homeUsers = GetArray(document.RootElement, "users")
             .Select(user => new PlexUserOptionDto
             {
-                Id = GetString(user, "uuid"),
+                Id = "home:" + GetString(user, "uuid"),
                 Name = GetString(user, "title"),
                 IsProtected = GetBoolean(user, "protected")
             })
             .Where(user => !string.IsNullOrWhiteSpace(user.Id) && !string.IsNullOrWhiteSpace(user.Name))
+            .ToArray();
+        PlexUserOptionDto[] sharedUsers = await GetSharedServerUsersAsync(serverUri, adminToken, cancellationToken).ConfigureAwait(false);
+        return homeUsers
+            .Concat(sharedUsers)
             .OrderBy(user => user.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(user => user.Id, StringComparer.Ordinal)
             .ToArray();
     }
 
     /// <summary>
-    /// Exchanges the administrator token for a token scoped to a Plex Home user.
+    /// Resolves a token scoped to a discovered Plex user.
     /// </summary>
-    public async Task<string> GetHomeUserTokenAsync(
+    public async Task<string> GetUserTokenAsync(
+        string serverUrl,
         string adminToken,
         string plexUserId,
         CancellationToken cancellationToken)
@@ -192,10 +201,32 @@ public sealed class PlexClient : IDisposable
             throw new InvalidOperationException("Choose a Plex Home user for every enabled mapping.");
         }
 
+        if (plexUserId.StartsWith("shared:", StringComparison.Ordinal))
+        {
+            string sharedUserId = plexUserId["shared:".Length..];
+            PlexSharedUserToken[] sharedUsers = await GetSharedServerUserTokensAsync(
+                ValidateBaseUri(serverUrl),
+                adminToken,
+                cancellationToken).ConfigureAwait(false);
+            string token = sharedUsers.FirstOrDefault(user => user.UserId == sharedUserId)?.AccessToken ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new InvalidOperationException("The selected shared Plex user no longer has access to this server.");
+            }
+
+            return token;
+        }
+
+        if (!plexUserId.StartsWith("home:", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Choose a Plex user from the discovered user list for every enabled mapping.");
+        }
+
+        string homeUserId = plexUserId["home:".Length..];
         using JsonDocument document = await SendJsonAsync(
             HttpMethod.Post,
             PlexTvBaseUri,
-            string.Create(CultureInfo.InvariantCulture, $"api/v2/home/users/{Uri.EscapeDataString(plexUserId)}/switch"),
+            string.Create(CultureInfo.InvariantCulture, $"api/v2/home/users/{Uri.EscapeDataString(homeUserId)}/switch"),
             adminToken,
             null,
             cancellationToken).ConfigureAwait(false);
@@ -206,6 +237,50 @@ public sealed class PlexClient : IDisposable
         }
 
         return userToken;
+    }
+
+    private async Task<PlexUserOptionDto[]> GetSharedServerUsersAsync(
+        Uri serverUri,
+        string adminToken,
+        CancellationToken cancellationToken)
+    {
+        return (await GetSharedServerUserTokensAsync(serverUri, adminToken, cancellationToken).ConfigureAwait(false))
+            .Select(user => new PlexUserOptionDto
+            {
+                Id = "shared:" + user.UserId,
+                Name = user.Name,
+                IsProtected = false
+            })
+            .ToArray();
+    }
+
+    private async Task<PlexSharedUserToken[]> GetSharedServerUserTokensAsync(
+        Uri serverUri,
+        string adminToken,
+        CancellationToken cancellationToken)
+    {
+        string identityXml = await GetTextAsync(serverUri, "identity", adminToken, cancellationToken).ConfigureAwait(false);
+        string machineIdentifier = XDocument.Parse(identityXml).Root?.Attribute("machineIdentifier")?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(machineIdentifier))
+        {
+            throw new InvalidOperationException("Plex did not return a server machine identifier.");
+        }
+
+        string sharedXml = await GetTextAsync(
+            PlexTvBaseUri,
+            string.Create(CultureInfo.InvariantCulture, $"api/servers/{Uri.EscapeDataString(machineIdentifier)}/shared_servers"),
+            adminToken,
+            cancellationToken).ConfigureAwait(false);
+        XDocument document = XDocument.Parse(sharedXml);
+        return document.Descendants("SharedServer")
+            .Select(element => new PlexSharedUserToken(
+                element.Attribute("userID")?.Value ?? string.Empty,
+                element.Attribute("username")?.Value ?? string.Empty,
+                element.Attribute("accessToken")?.Value ?? string.Empty))
+            .Where(user => !string.IsNullOrWhiteSpace(user.UserId)
+                && !string.IsNullOrWhiteSpace(user.Name)
+                && !string.IsNullOrWhiteSpace(user.AccessToken))
+            .ToArray();
     }
 
     /// <inheritdoc />
@@ -262,6 +337,28 @@ public sealed class PlexClient : IDisposable
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string> GetTextAsync(
+        Uri baseUri,
+        string relativeUrl,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(baseUri, relativeUrl));
+        request.Headers.Add("X-Plex-Token", token);
+        request.Headers.Add("X-Plex-Product", "Jellyfin Watch State Sync");
+        request.Headers.Add("X-Plex-Version", "0.1.0");
+        request.Headers.Add("X-Plex-Client-Identifier", "jellyfin-watch-state-sync");
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(string.Create(
+                CultureInfo.InvariantCulture,
+                $"Plex returned HTTP {(int)response.StatusCode} ({response.ReasonPhrase}) for {request.RequestUri?.AbsolutePath}."));
+        }
+
+        return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static void EnsureToken(string token, string description)
@@ -332,6 +429,8 @@ public sealed class PlexClient : IDisposable
             && element.TryGetProperty(property, out JsonElement value)
             && value.ValueKind == JsonValueKind.True;
     }
+
+    private sealed record PlexSharedUserToken(string UserId, string Name, string AccessToken);
 
     private static int GetInt32(JsonElement element, string property)
     {
