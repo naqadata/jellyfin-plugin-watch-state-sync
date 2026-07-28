@@ -9,6 +9,7 @@ JELLYFIN_ENABLE_REMOTE_ACCESS="${JELLYFIN_ENABLE_REMOTE_ACCESS:-false}"
 JELLYFIN_SERVER_NAME="${JELLYFIN_SERVER_NAME:-Watch State Sync Fixture}"
 AUTHORIZATION='MediaBrowser Client="WatchStateSyncE2E", Device="DockerFixture", DeviceId="watch-state-sync-e2e", Version="0.1.0"'
 TOKEN_FILE="$SCRIPT_DIR/state/jellyfin-token"
+SYSTEM_CONFIG_FILE="$SCRIPT_DIR/state/jellyfin-config/config/system.xml"
 CURL_RETRY=(
     --retry 30
     --retry-delay 2
@@ -17,11 +18,26 @@ CURL_RETRY=(
     --max-time 10
 )
 
-public_info="$(
+read_public_info() {
     curl --fail --silent --show-error \
         "${CURL_RETRY[@]}" \
         "$JELLYFIN_URL/System/Info/Public"
-)"
+}
+
+public_info="$(read_public_info)"
+if grep -q '<IsStartupWizardCompleted>true</IsStartupWizardCompleted>' \
+    "$SYSTEM_CONFIG_FILE" 2>/dev/null; then
+    configuration_ready_started_at="$(date +%s)"
+    while [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; do
+        if [ "$(( $(date +%s) - configuration_ready_started_at ))" -ge 90 ]; then
+            echo "Timed out waiting for Jellyfin to load its persisted configuration" >&2
+            exit 1
+        fi
+        sleep 1
+        public_info="$(read_public_info)"
+    done
+fi
+
 if [ "$(jq -r '.StartupWizardCompleted' <<<"$public_info")" != "true" ]; then
     user_ready_started_at="$(date +%s)"
     until curl --fail --silent --show-error "$JELLYFIN_URL/Startup/User" \
