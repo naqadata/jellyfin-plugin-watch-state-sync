@@ -1,0 +1,36 @@
+name: watch-state-sync-e2e
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.6
+    ports:
+      - "127.0.0.1:${JELLYFIN_PORT:-18096}:8096"
+    environment:
+      JELLYFIN_PublishedServerUrl: "http://127.0.0.1:${JELLYFIN_PORT:-18096}"
+    volumes:
+      - ./state/jellyfin-config:/config
+      - ./state/jellyfin-cache:/cache
+      - ./media:/media:ro
+    networks:
+      - fixture
+
+  plex:
+    image: plexinc/pms-docker:1.43.1.10611-1e34174b1
+    hostname: watch-state-sync-plex
+    ports:
+      - "127.0.0.1:${PLEX_PORT:-32410}:32400"
+    environment:
+      TZ: "${TZ:-Etc/UTC}"
+      PLEX_CLAIM: "${PLEX_CLAIM:-}"
+      ADVERTISE_IP: "http://127.0.0.1:${PLEX_PORT:-32410}/"
+      ALLOWED_NETWORKS: "0.0.0.0/0"
+    volumes:
+      - ./state/plex-config:/config
+      - ./state/plex-transcode:/transcode
+      - ./media:/media:ro
+    networks:
+      - fixture
+
+networks:
+  fixture:
+    driver: bridge

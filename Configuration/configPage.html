@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Watch State Sync</title>
+</head>
+<body>
+    <div id="WatchStateSyncConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <h1>Watch State Sync</h1>
+                <p>This initial configuration surface supports fixture development. User mapping and migration controls will be added with the read-only matcher.</p>
+                <form id="WatchStateSyncConfigForm">
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="PlexServerUrl">Plex server URL</label>
+                        <input id="PlexServerUrl" name="PlexServerUrl" type="url" is="emby-input" />
+                        <div class="fieldDescription">For the local Docker fixture, use http://plex:32400 from inside the Jellyfin network.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="PollIntervalSeconds">Plex poll interval (seconds)</label>
+                        <input id="PollIntervalSeconds" name="PollIntervalSeconds" type="number" is="emby-input" min="10" max="86400" />
+                    </div>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input id="EnableLiveSync" name="EnableLiveSync" type="checkbox" is="emby-checkbox" />
+                            <span>Enable completed-view live sync</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Leave disabled until a baseline migration has completed.</div>
+                    </div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                        <span>Save</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <script type="text/javascript">
+            var WatchStateSyncConfig = {
+                pluginUniqueId: '0df4d4de-503e-4c18-bb5d-b274de7046d3'
+            };
+
+            document.querySelector('#WatchStateSyncConfigPage')
+                .addEventListener('pageshow', function() {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(WatchStateSyncConfig.pluginUniqueId).then(function(config) {
+                        document.querySelector('#PlexServerUrl').value = config.PlexServerUrl || '';
+                        document.querySelector('#PollIntervalSeconds').value = config.PollIntervalSeconds || 60;
+                        document.querySelector('#EnableLiveSync').checked = !!config.EnableLiveSync;
+                        Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector('#WatchStateSyncConfigForm')
+                .addEventListener('submit', function(event) {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(WatchStateSyncConfig.pluginUniqueId).then(function(config) {
+                        config.PlexServerUrl = document.querySelector('#PlexServerUrl').value.trim();
+                        config.PollIntervalSeconds = parseInt(document.querySelector('#PollIntervalSeconds').value || '60', 10);
+                        config.EnableLiveSync = document.querySelector('#EnableLiveSync').checked;
+                        ApiClient.updatePluginConfiguration(WatchStateSyncConfig.pluginUniqueId, config).then(function(result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+
+                    event.preventDefault();
+                    return false;
+                });
+        </script>
+    </div>
+</body>
+</html>

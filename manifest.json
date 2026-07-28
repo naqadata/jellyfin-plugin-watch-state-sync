@@ -1,0 +1,11 @@
+[
+  {
+    "guid": "0df4d4de-503e-4c18-bb5d-b274de7046d3",
+    "name": "Watch State Sync",
+    "description": "Migrates and synchronizes watched state between Plex and Jellyfin.",
+    "overview": "Provides a Plex-authoritative baseline migration and optional completed-view synchronization.",
+    "owner": "naqadata",
+    "category": "General",
+    "versions": []
+  }
+]
