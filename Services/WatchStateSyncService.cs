@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.WatchStateSync.Services;
 
 /// <summary>
-/// Owns the future baseline and completed-view synchronization loops.
+/// Reserves the hosted-service lifecycle for future opt-in completed-view synchronization.
 /// </summary>
 public sealed class WatchStateSyncService : BackgroundService
 {
@@ -22,7 +22,7 @@ public sealed class WatchStateSyncService : BackgroundService
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Watch State Sync service initialized; synchronization is not implemented yet");
+        _logger.LogInformation("Watch State Sync initialized; baseline migration is manual-only and live sync is disabled");
 
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken).ConfigureAwait(false);
     }

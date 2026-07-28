@@ -1,0 +1,83 @@
+using System.Net;
+using Jellyfin.Plugin.WatchStateSync.Migration;
+using Jellyfin.Plugin.WatchStateSync.Plex;
+using Xunit;
+
+namespace Jellyfin.Plugin.WatchStateSync.Tests.Plex;
+
+public sealed class PlexClientTests
+{
+    [Fact]
+    public async Task GetWatchStateItemsAsync_ParsesTokenScopedMovieState()
+    {
+        var handler = new QueueHandler(
+            """
+            {"MediaContainer":{"Directory":[{"key":"1","type":"movie","title":"Movies"}]}}
+            """,
+            """
+            {"MediaContainer":{"size":1,"totalSize":1,"Metadata":[{
+              "ratingKey":"42",
+              "title":"Movie",
+              "viewCount":2,
+              "lastViewedAt":1700000000,
+              "Media":[{"Part":[{"file":"/media/Movies/Movie.mp4"}]}]
+            }]}}
+            """);
+        using var client = new PlexClient(new HttpClient(handler));
+
+        IReadOnlyList<PlexWatchStateItem> items = await client.GetWatchStateItemsAsync(
+            "http://plex:32400",
+            "secret-token",
+            CancellationToken.None);
+
+        PlexWatchStateItem item = Assert.Single(items);
+        Assert.Equal("42", item.RatingKey);
+        Assert.True(item.Played);
+        Assert.Equal("/media/Movies/Movie.mp4", Assert.Single(item.Paths));
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1700000000), item.LastViewedAt);
+        Assert.All(handler.Requests, request => Assert.Equal("secret-token", request.Token));
+    }
+
+    [Fact]
+    public async Task GetWatchStateItemsAsync_RejectsMissingToken()
+    {
+        using var client = new PlexClient(new HttpClient(new QueueHandler()));
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.GetWatchStateItemsAsync(
+                "http://plex:32400",
+                string.Empty,
+                CancellationToken.None));
+
+        Assert.Contains("token", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class QueueHandler : HttpMessageHandler
+    {
+        private readonly Queue<string> _responses;
+
+        public QueueHandler(params string[] responses)
+        {
+            _responses = new Queue<string>(responses);
+        }
+
+        public List<(Uri? Uri, string? Token)> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            request.Headers.TryGetValues("X-Plex-Token", out IEnumerable<string>? values);
+            Requests.Add((request.RequestUri, values?.SingleOrDefault()));
+            if (_responses.Count == 0)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(_responses.Dequeue())
+            });
+        }
+    }
+}

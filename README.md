@@ -24,7 +24,8 @@ The repository contains:
 - isolated Jellyfin and Plex Docker fixtures;
 - deterministic shared movie and episode media generation.
 
-Synchronization writes are not implemented yet.
+The manual Plex-to-Jellyfin baseline migration is implemented. Completed-view
+live sync remains deferred.
 
 ## Build and test
 
@@ -37,6 +38,12 @@ Run the Docker fixture smoke test:
 
 ```bash
 ./scripts/test.sh --e2e
+```
+
+On the claimed Cortana stack, exercise the real manual migration path:
+
+```bash
+./deploy/cortana/test-baseline.sh
 ```
 
 See [`tests/e2e/README.md`](tests/e2e/README.md) for authentication and lifecycle

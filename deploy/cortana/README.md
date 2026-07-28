@@ -10,6 +10,7 @@ The deployment lives at `/opt/watch-state-sync-dev`. From Cortana's WSL:
 cd /opt/watch-state-sync-dev
 ./deploy/cortana/up.sh
 ./deploy/cortana/status.sh
+./deploy/cortana/test-baseline.sh
 ./deploy/cortana/down.sh
 ```
 
@@ -25,6 +26,10 @@ Plex does not support local users. Open Plex Web, sign in with a disposable Plex
 account, and claim the server. You may instead set a short-lived `PLEX_CLAIM`
 before the first run. Once claimed, set `PLEX_TOKEN` for that account in `.env`
 so the sync plugin can make authenticated calls.
+
+`test-baseline.sh` deliberately creates opposite watched states for the sample
+movie and episode, runs the plugin's required dry run, explicitly applies that
+preview, verifies both writes, and proves a second dry run is idempotent.
 
 ## Network access
 
